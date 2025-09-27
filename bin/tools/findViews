@@ -1,0 +1,70 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+$container = require __DIR__ . '/../../../../bootstrapCli.php';
+
+$argc = $_SERVER['argc'];
+$argv = $_SERVER['argv'];
+
+echo PHP_EOL;
+
+if ($argc != 2) {
+    echo 'Please provide controllers directory relative to ' . __ROOT__ . PHP_EOL . PHP_EOL;
+    exit(1);
+}
+
+$path = __ROOT__ . DIRECTORY_SEPARATOR . trim(trim($argv[1]), '/');
+
+$main = new Main();
+$main->run($path);
+
+class Main
+{
+    protected string $match = '/views/';
+
+    public function run(string $path): void
+    {
+        $q = "'";
+
+        if (!$path = realpath($path)) {
+            $this->error('Can not locate ' . $path);
+        }
+
+        echo PHP_EOL . 'Found Views:' . PHP_EOL;
+        echo PHP_EOL . '*** copy & paste as needed ***' . PHP_EOL . PHP_EOL;
+
+        foreach ($this->globr($path . '/*.php') as $absPath) {
+            $directoryPos = strpos($absPath, $this->match);
+
+            if ($directoryPos > 0) {
+                $name = substr($absPath, $directoryPos + 1);
+                $key = substr($name, strlen($this->match) - 1, -4);
+
+                $absPath = '__ROOT__ . ' . $q . substr($absPath, strlen(__ROOT__)) . $q;
+
+                echo $q . $key . $q . ' => ' . $absPath . ',' . PHP_EOL;
+            }
+        }
+
+        echo PHP_EOL . PHP_EOL;
+    }
+
+    protected function globr($pattern, $flags = 0)
+    {
+        $files = glob($pattern, $flags);
+
+        foreach (glob(dirname($pattern) . '/*', GLOB_ONLYDIR | GLOB_NOSORT) as $dir) {
+            $files = array_merge($files, $this->globr($dir . '/' . basename($pattern), $flags));
+        }
+
+        return $files;
+    }
+
+    protected function error(string $msg): void
+    {
+        echo $msg . PHP_EOL;
+        exit(1);
+    }
+}
