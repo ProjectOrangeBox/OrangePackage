@@ -21,19 +21,19 @@ use orange\framework\traits\ConfigurationTrait;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Acts as a publish–subscribe system: components can register listeners for named triggers, and those listeners will run when the trigger is fired.
- * 	•	Provides priority-based execution so some listeners can run before others.
- * 	•	Supports both closures (inline functions) and class–method pairs as event handlers.
- * 	•	Centralizes event handling, so code stays loosely coupled and extensible.
+ *  •   Acts as a publish–subscribe system: components can register listeners for named triggers, and those listeners will run when the trigger is fired.
+ *  •   Provides priority-based execution so some listeners can run before others.
+ *  •   Supports both closures (inline functions) and class–method pairs as event handlers.
+ *  •   Centralizes event handling, so code stays loosely coupled and extensible.
  *
  * ⸻
  *
  * 2. Initialization
- * 	•	The constructor is protected (Singleton enforced).
- * 	•	Accepts a configuration array of event mappings.
- * 	•	Uses mergeConfigWith() (from ConfigurationTrait) to combine defaults with provided configuration.
- * 	•	Initializes the $events store by looping through config and registering each event.
- * 	•	Supports a special disabled flag to globally turn events off.
+ *  •   The constructor is protected (Singleton enforced).
+ *  •   Accepts a configuration array of event mappings.
+ *  •   Uses mergeConfigWith() (from ConfigurationTrait) to combine defaults with provided configuration.
+ *  •   Initializes the $events store by looping through config and registering each event.
+ *  •   Supports a special disabled flag to globally turn events off.
  *
  * Example configuration format:
  *
@@ -48,37 +48,37 @@ use orange\framework\traits\ConfigurationTrait;
  * ];
  *
  * 3. Key Features
- * 	1.	Enable/Disable
- * 	•	disable() → stops all events from firing.
- * 	•	enable() → re-enables them.
- * 	2.	Registration
- * 	•	register($trigger, $callable, $priority) → adds a single event listener.
- * 	•	registerMultiple($events, $priority) → adds several at once.
- * 	•	Internally uses registerEvent() and registerClosureEvent() to store listeners.
- * 	3.	Triggering
- * 	•	trigger($trigger, &...$arguments) → fires all listeners for a given trigger, passing arguments by reference.
- * 	•	Listeners can stop propagation by returning false.
- * 	4.	Management
- * 	•	has($trigger) → checks if listeners exist for a trigger.
- * 	•	triggers() → lists all registered triggers.
- * 	•	unregister($eventId) → removes a specific listener.
- * 	•	unregisterAll($trigger = null) → clears all listeners, or just for one trigger.
- * 	5.	Listener Execution
- * 	•	Listeners are sorted by priority (highest first).
- * 	•	Supports closures directly, or array form [ClassName::class, 'method'] which will be wrapped into a closure that instantiates the class and calls the method.
+ *  1.  Enable/Disable
+ *  •   disable() → stops all events from firing.
+ *  •   enable() → re-enables them.
+ *  2.  Registration
+ *  •   register($trigger, $callable, $priority) → adds a single event listener.
+ *  •   registerMultiple($events, $priority) → adds several at once.
+ *  •   Internally uses registerEvent() and registerClosureEvent() to store listeners.
+ *  3.  Triggering
+ *  •   trigger($trigger, &...$arguments) → fires all listeners for a given trigger, passing arguments by reference.
+ *  •   Listeners can stop propagation by returning false.
+ *  4.  Management
+ *  •   has($trigger) → checks if listeners exist for a trigger.
+ *  •   triggers() → lists all registered triggers.
+ *  •   unregister($eventId) → removes a specific listener.
+ *  •   unregisterAll($trigger = null) → clears all listeners, or just for one trigger.
+ *  5.  Listener Execution
+ *  •   Listeners are sorted by priority (highest first).
+ *  •   Supports closures directly, or array form [ClassName::class, 'method'] which will be wrapped into a closure that instantiates the class and calls the method.
  *
  * ⸻
  *
  * 4. Error Handling
- * 	•	Throws InvalidValue exception if a bad callable is registered.
- * 	•	Logs debug information (logMsg) at various points to aid troubleshooting.
+ *  •   Throws InvalidValue exception if a bad callable is registered.
+ *  •   Logs debug information (logMsg) at various points to aid troubleshooting.
  *
  * ⸻
  *
  * 5. Big Picture
- * 	•	Event.php provides the hook system for the Orange framework.
- * 	•	It allows developers to plug into the lifecycle (like before.router, after.output, etc.) without modifying core code.
- * 	•	By centralizing event registration and dispatch, it keeps the system flexible, extensible, and testable.
+ *  •   Event.php provides the hook system for the Orange framework.
+ *  •   It allows developers to plug into the lifecycle (like before.router, after.output, etc.) without modifying core code.
+ *  •   By centralizing event registration and dispatch, it keeps the system flexible, extensible, and testable.
  *
  * Example Configuration:
  * return [

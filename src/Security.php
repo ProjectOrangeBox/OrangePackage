@@ -23,45 +23,45 @@ use orange\framework\exceptions\security\Security as SecurityException;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Manage and generate cryptographic keys.
- * 	•	Provide secure encryption and decryption of data.
- * 	•	Create and verify HMAC signatures.
- * 	•	Handle secure password hashing and verification.
- * 	•	Offer input sanitation utilities (filenames, invisible characters).
+ *  •   Manage and generate cryptographic keys.
+ *  •   Provide secure encryption and decryption of data.
+ *  •   Create and verify HMAC signatures.
+ *  •   Handle secure password hashing and verification.
+ *  •   Offer input sanitation utilities (filenames, invisible characters).
  *
  * It centralizes all critical cryptographic and security operations in one place.
  *
  * ⸻
  *
  * 2. Key Features
- * 	1.	Key Management (createKeys, getKeyFilePath)
- * 	•	Generates X25519 public/private key pairs for encryption.
- * 	•	Generates an authentication key for HMAC.
- * 	•	Validates configuration, ensures directories are writable, and prevents overwriting existing keys.
- * 	2.	Encryption & Decryption (encrypt, decrypt)
- * 	•	encrypt() → Uses the public key and sodium_crypto_box_seal to encrypt data.
- * 	•	decrypt() → Uses the private key and sodium_crypto_box_seal_open to decrypt.
- * 	•	Handles conversion to/from hexadecimal securely.
- * 	3.	Message Authentication (createSignature, verifySignature)
- * 	•	createSignature() → Generates HMAC signatures using a secret auth key.
- * 	•	verifySignature() → Verifies message signatures with constant-time checks.
- * 	•	Protects against tampering.
- * 	4.	Password Handling (encodePassword, verifyPassword)
- * 	•	Uses Argon2 (via sodium_crypto_pwhash_str) to hash passwords.
- * 	•	Verifies entered passwords against stored hashes.
- * 	•	Protects against brute-force attacks.
- * 	5.	Input Sanitization (removeInvisibleCharacters, cleanFilename)
- * 	•	Removes non-printable characters from input.
- * 	•	Cleans filenames by stripping dangerous characters and encodings (e.g., ../, <, ;, %).
- * 	•	Reduces the risk of injection or traversal attacks.
+ *  1.  Key Management (createKeys, getKeyFilePath)
+ *  •   Generates X25519 public/private key pairs for encryption.
+ *  •   Generates an authentication key for HMAC.
+ *  •   Validates configuration, ensures directories are writable, and prevents overwriting existing keys.
+ *  2.  Encryption & Decryption (encrypt, decrypt)
+ *  •   encrypt() → Uses the public key and sodium_crypto_box_seal to encrypt data.
+ *  •   decrypt() → Uses the private key and sodium_crypto_box_seal_open to decrypt.
+ *  •   Handles conversion to/from hexadecimal securely.
+ *  3.  Message Authentication (createSignature, verifySignature)
+ *  •   createSignature() → Generates HMAC signatures using a secret auth key.
+ *  •   verifySignature() → Verifies message signatures with constant-time checks.
+ *  •   Protects against tampering.
+ *  4.  Password Handling (encodePassword, verifyPassword)
+ *  •   Uses Argon2 (via sodium_crypto_pwhash_str) to hash passwords.
+ *  •   Verifies entered passwords against stored hashes.
+ *  •   Protects against brute-force attacks.
+ *  5.  Input Sanitization (removeInvisibleCharacters, cleanFilename)
+ *  •   Removes non-printable characters from input.
+ *  •   Cleans filenames by stripping dangerous characters and encodings (e.g., ../, <, ;, %).
+ *  •   Reduces the risk of injection or traversal attacks.
  *
  * ⸻
  *
  * 3. Security Practices
- * 	•	Uses Libsodium for modern cryptography.
- * 	•	Always overwrites sensitive data in memory (sodium_memzero).
- * 	•	Validates all inputs (hex checks, config paths).
- * 	•	Throws descriptive exceptions for misconfiguration or invalid data.
+ *  •   Uses Libsodium for modern cryptography.
+ *  •   Always overwrites sensitive data in memory (sodium_memzero).
+ *  •   Validates all inputs (hex checks, config paths).
+ *  •   Throws descriptive exceptions for misconfiguration or invalid data.
  *
  * ⸻
  *

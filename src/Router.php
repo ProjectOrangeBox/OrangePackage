@@ -19,85 +19,85 @@ use orange\framework\exceptions\router\HttpMethodNotSupported;
  * Overview of Router.php
  *
  * This file defines the Router class in the orange\framework namespace.
- * It is a core component of the Orange framework responsible for managing application routes 
+ * It is a core component of the Orange framework responsible for managing application routes
  * — the mapping between URLs, HTTP methods, and their corresponding callbacks or controllers.
  * It implements both the Singleton pattern and the RouterInterface.
  *
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Registers routes (individually or in bulk).
- * 	•	Matches incoming requests (URI + HTTP method) to defined routes.
- * 	•	Provides named route lookups to generate URLs.
- * 	•	Manages route configuration and caching for performance.
- * 	•	Enforces routing rules and validates parameters.
+ *  •   Registers routes (individually or in bulk).
+ *  •   Matches incoming requests (URI + HTTP method) to defined routes.
+ *  •   Provides named route lookups to generate URLs.
+ *  •   Manages route configuration and caching for performance.
+ *  •   Enforces routing rules and validates parameters.
  *
  * ⸻
  *
  * 2. Key Properties
- * 	•	$routes → holds routes grouped by HTTP method (GET, POST, PUT, DELETE, etc.).
- * 	•	$routesByName → stores routes keyed by their names for quick URL generation.
- * 	•	$matched → stores details of the last matched route (URI, method, arguments, name, callback).
- * 	•	$inputService → reference to InputInterface, used for request details (method, URI, HTTPS).
- * 	•	$siteUrl → base URL of the application.
- * 	•	$cacheService / $cacheKey → optional caching mechanism to persist routes.
- * 	•	$onMatchAll → defines methods used for wildcard route matching.
- * 	•	$skipParameterTypeChecking → flag to bypass regex validation of route parameters.
+ *  •   $routes → holds routes grouped by HTTP method (GET, POST, PUT, DELETE, etc.).
+ *  •   $routesByName → stores routes keyed by their names for quick URL generation.
+ *  •   $matched → stores details of the last matched route (URI, method, arguments, name, callback).
+ *  •   $inputService → reference to InputInterface, used for request details (method, URI, HTTPS).
+ *  •   $siteUrl → base URL of the application.
+ *  •   $cacheService / $cacheKey → optional caching mechanism to persist routes.
+ *  •   $onMatchAll → defines methods used for wildcard route matching.
+ *  •   $skipParameterTypeChecking → flag to bypass regex validation of route parameters.
  *
  * ⸻
  *
  * 3. Constructor
- * 	•	Takes in config, input service, and optional cache service.
- * 	•	Validates required configuration (site).
- * 	•	Loads routes from cache (if available) or from configuration.
- * 	•	Sets up default route placeholders like 404 and home.
+ *  •   Takes in config, input service, and optional cache service.
+ *  •   Validates required configuration (site).
+ *  •   Loads routes from cache (if available) or from configuration.
+ *  •   Sets up default route placeholders like 404 and home.
  *
  * ⸻
  *
  * 4. Core Methods
- * 	1.	addRoute(array $options)
- * 	•	Registers a single route (URL, method, callback, name).
- * 	•	Supports wildcard methods (*) by mapping to multiple HTTP verbs.
- * 	•	Updates cache.
- * 	2.	addRoutes(array $routes)
- * 	•	Registers multiple routes at once (reverse order for precedence).
- * 	3.	match(string $requestUri, string $requestMethod)
- * 	•	Matches an incoming URI + method to a defined route using regex.
- * 	•	Populates $matched with details (URL, argv, callback, etc.).
- * 	•	Throws RouteNotFound if nothing matches.
- * 	4.	getMatched(?string $key = null)
- * 	•	Returns full matched route info or a specific value (like callback or url).
- * 	5.	getUrl(string $searchName, array $arguments = [], ?bool $skipParameterTypeChecking = null)
- * 	•	Generates a URL from a named route, inserting arguments into placeholders.
- * 	•	Enforces regex validation on arguments unless skipped.
- * 	•	Throws exceptions if arguments don’t match or route name isn’t found.
- * 	6.	siteUrl(bool|string $prefix = true)
- * 	•	Returns the application’s base URL with optional scheme (http://, https://, or custom).
- * 	7.	updateCache() / getRoutes() / addConfigRoutes()
- * 	•	Manage loading and caching of route definitions for performance.
+ *  1.  addRoute(array $options)
+ *  •   Registers a single route (URL, method, callback, name).
+ *  •   Supports wildcard methods (*) by mapping to multiple HTTP verbs.
+ *  •   Updates cache.
+ *  2.  addRoutes(array $routes)
+ *  •   Registers multiple routes at once (reverse order for precedence).
+ *  3.  match(string $requestUri, string $requestMethod)
+ *  •   Matches an incoming URI + method to a defined route using regex.
+ *  •   Populates $matched with details (URL, argv, callback, etc.).
+ *  •   Throws RouteNotFound if nothing matches.
+ *  4.  getMatched(?string $key = null)
+ *  •   Returns full matched route info or a specific value (like callback or url).
+ *  5.  getUrl(string $searchName, array $arguments = [], ?bool $skipParameterTypeChecking = null)
+ *  •   Generates a URL from a named route, inserting arguments into placeholders.
+ *  •   Enforces regex validation on arguments unless skipped.
+ *  •   Throws exceptions if arguments don’t match or route name isn’t found.
+ *  6.  siteUrl(bool|string $prefix = true)
+ *  •   Returns the application’s base URL with optional scheme (http://, https://, or custom).
+ *  7.  updateCache() / getRoutes() / addConfigRoutes()
+ *  •   Manage loading and caching of route definitions for performance.
  *
  * ⸻
  *
  * 5. Error Handling
- * 	•	Throws MissingRequired if critical config (like site) is missing.
- * 	•	Throws RouteNotFound when no route matches.
- * 	•	Throws HttpMethodNotSupported if an invalid method is used.
- * 	•	Throws RouterNameNotFound if generating a URL for an unknown route.
- * 	•	Throws InvalidValue for mismatched argument counts or regex validation failures.
+ *  •   Throws MissingRequired if critical config (like site) is missing.
+ *  •   Throws RouteNotFound when no route matches.
+ *  •   Throws HttpMethodNotSupported if an invalid method is used.
+ *  •   Throws RouterNameNotFound if generating a URL for an unknown route.
+ *  •   Throws InvalidValue for mismatched argument counts or regex validation failures.
  *
  * ⸻
  *
  * 6. Big Picture
  *
  * Router.php is the routing engine of the framework:
- * 	1.	Developers register routes with methods, URLs, and callbacks.
- * 	2.	Incoming requests are matched against these routes.
- * 	3.	The router hands off the matched route details to the dispatcher, which calls the appropriate controller.
- * 	4.	Optionally, caching makes repeated lookups faster.
+ *  1.  Developers register routes with methods, URLs, and callbacks.
+ *  2.  Incoming requests are matched against these routes.
+ *  3.  The router hands off the matched route details to the dispatcher, which calls the appropriate controller.
+ *  4.  Optionally, caching makes repeated lookups faster.
  *
  * It ensures that every HTTP request is routed consistently, securely, and with flexible options
  * like named routes, parameter validation, and caching.
- * 
+ *
  * @package orange\framework
  */
 class Router extends Singleton implements RouterInterface

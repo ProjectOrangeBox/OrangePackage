@@ -48,6 +48,7 @@ interface InputInterface
     // get the most basic url based or body based input
     public function rawGet(): string;
     public function rawBody(): string;
+    public function rawServer(): string;
 
     // returns ENTIRE input array
     public function copy(): array;

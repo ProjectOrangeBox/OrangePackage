@@ -17,10 +17,10 @@ use orange\framework\base\SingletonArrayObject;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Implements the DataInterface, which defines the expected contract for a data service in the framework.
- * 	•	Extends SingletonArrayObject, making it both:
- * 	•	A singleton → only one instance exists during runtime.
- * 	•	An enhanced array-like object → allows property-style access ($data->key) as well as array-style access ($data['key']).
+ *  •   Implements the DataInterface, which defines the expected contract for a data service in the framework.
+ *  •   Extends SingletonArrayObject, making it both:
+ *  •   A singleton → only one instance exists during runtime.
+ *  •   An enhanced array-like object → allows property-style access ($data->key) as well as array-style access ($data['key']).
  *
  * This makes it the shared data store available across the application lifecycle.
  *

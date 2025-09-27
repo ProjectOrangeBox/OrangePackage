@@ -134,11 +134,6 @@ class SingletonArrayObject extends ArrayObject
         $array = [];
 
         foreach ($data as $key => $value) {
-            /*
-            if (is_array($value)) {
-                $value = new self($value);
-            }
-            */
             $array[$key] = $value;
         }
 

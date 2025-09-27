@@ -19,61 +19,61 @@ use orange\framework\traits\ConfigurationTrait;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Acts as the central request handler for the framework.
- * 	•	Collects data from GET, POST, FILES, COOKIE, REQUEST, SERVER, and raw request body.
- * 	•	Normalizes keys for consistency.
- * 	•	Detects the request method, type (HTML, AJAX, CLI), and whether it is HTTPS.
- * 	•	Provides developers with an easy API to extract input safely.
+ *  •   Acts as the central request handler for the framework.
+ *  •   Collects data from GET, POST, FILES, COOKIE, REQUEST, SERVER, and raw request body.
+ *  •   Normalizes keys for consistency.
+ *  •   Detects the request method, type (HTML, AJAX, CLI), and whether it is HTTPS.
+ *  •   Provides developers with an easy API to extract input safely.
  *
  * ⸻
  *
  * 2. Key Properties
- * 	•	$input → normalized request data (GET, POST, etc.).
- * 	•	$internal → raw values such as the original server array and raw body.
- * 	•	$requestType → type of request (html, ajax, cli).
- * 	•	$requestMethod → HTTP method (get, post, put, etc., or cli).
- * 	•	$isHttps → whether the request is HTTPS.
- * 	•	$remapKeys → allows remapping of input keys for normalization.
+ *  •   $input → normalized request data (GET, POST, etc.).
+ *  •   $internal → raw values such as the original server array and raw body.
+ *  •   $requestType → type of request (html, ajax, cli).
+ *  •   $requestMethod → HTTP method (get, post, put, etc., or cli).
+ *  •   $isHttps → whether the request is HTTPS.
+ *  •   $remapKeys → allows remapping of input keys for normalization.
  *
  * ⸻
  *
  * 3. Initialization
- * 	•	The constructor takes a configuration array, merges it with defaults, and builds the input structure.
- * 	•	build():
- * 	•	Validates server configuration.
- * 	•	Populates $input and $internal.
- * 	•	Determines request type, method, and HTTPS status.
+ *  •   The constructor takes a configuration array, merges it with defaults, and builds the input structure.
+ *  •   build():
+ *  •   Validates server configuration.
+ *  •   Populates $input and $internal.
+ *  •   Determines request type, method, and HTTPS status.
  *
  * ⸻
  *
  * 4. Data Access Methods
- * 	•	replace($replace) → updates config with new values (with key restrictions).
- * 	•	copy() → returns a full snapshot of the request (including raw body & server).
- * 	•	requestUri() / uriSegment($n) → retrieves request URI and path segments.
- * 	•	getUrl($component) → extracts parsed parts of the URL.
- * 	•	requestMethod() / requestType() → retrieves normalized method and type.
- * 	•	isAjaxRequest() / isCliRequest() / isHttpsRequest() → checks request conditions.
- * 	•	rawGet() / rawBody() → provides raw GET query and raw body.
- * 	•	has($name, $key) → check if input key exists.
- * 	•	Magic access:
- * 	•	__call() → dynamically fetch values ($input->post('id')).
- * 	•	__get() → allows property-style access ($input->post).
+ *  •   replace($replace) → updates config with new values (with key restrictions).
+ *  •   copy() → returns a full snapshot of the request (including raw body & server).
+ *  •   requestUri() / uriSegment($n) → retrieves request URI and path segments.
+ *  •   getUrl($component) → extracts parsed parts of the URL.
+ *  •   requestMethod() / requestType() → retrieves normalized method and type.
+ *  •   isAjaxRequest() / isCliRequest() / isHttpsRequest() → checks request conditions.
+ *  •   rawGet() / rawBody() → provides raw GET query and raw body.
+ *  •   has($name, $key) → check if input key exists.
+ *  •   Magic access:
+ *  •   __call() → dynamically fetch values ($input->post('id')).
+ *  •   __get() → allows property-style access ($input->post).
  *
  * ⸻
  *
  * 5. Internal Processing
- * 	•	extract($type, $key, $default) → safely fetches values from normalized input.
- * 	•	getRequestType() → detects HTML, AJAX, or CLI request.
- * 	•	getMethod() → resolves HTTP method (with overrides like _method).
- * 	•	getHttps() → detects HTTPS from server variables.
- * 	•	detectBody() → auto-converts raw body into JSON array or parsed query string if possible.
- * 	•	parseStr() → helper to parse query strings into arrays.
+ *  •   extract($type, $key, $default) → safely fetches values from normalized input.
+ *  •   getRequestType() → detects HTML, AJAX, or CLI request.
+ *  •   getMethod() → resolves HTTP method (with overrides like _method).
+ *  •   getHttps() → detects HTTPS from server variables.
+ *  •   detectBody() → auto-converts raw body into JSON array or parsed query string if possible.
+ *  •   parseStr() → helper to parse query strings into arrays.
  *
  * ⸻
  *
  * 6. Error Handling
- * 	•	If invalid keys or input types are accessed, it throws InvalidValue exceptions.
- * 	•	Protects against direct reliance on untrusted superglobals by funneling all input through controlled APIs.
+ *  •   If invalid keys or input types are accessed, it throws InvalidValue exceptions.
+ *  •   Protects against direct reliance on untrusted superglobals by funneling all input through controlled APIs.
  *
  * ⸻
  *
@@ -133,11 +133,8 @@ class Input extends Singleton implements InputInterface
 
         $this->remapKeys = $this->config['remap keys'] ? array_change_key_case($this->config['remap keys'], CASE_LOWER) : [];
 
-        $this->input = [];
-        $this->internal = [];
-
         // server IS required when we build the input array
-        $this->build(true);
+        $this->build($this->config, true);
     }
 
     /**
@@ -165,7 +162,7 @@ class Input extends Singleton implements InputInterface
         $this->config = array_replace($this->config, $replace);
 
         // server NOT required when we build the input array
-        return $this->build(false);
+        return $this->build($this->config, false);
     }
 
     /**
@@ -182,6 +179,7 @@ class Input extends Singleton implements InputInterface
 
         // put the raw body back into body as a string
         $input['body'] = $this->rawBody();
+        // put the raw server back into server as an array
         $input['server'] = $this->internal['server'];
 
         return $input;
@@ -325,6 +323,19 @@ class Input extends Singleton implements InputInterface
     }
 
     /**
+     * Retrieves the raw server array.
+     *
+     * @return string
+     */
+    public function rawServer(): string
+    {
+        logMsg('INFO', __METHOD__);
+        logMsg('DEBUG', '', ['server' => $this->internal['server']]);
+
+        return $this->internal['server'];
+    }
+
+    /**
      * Handles dynamic method calls.
      *
      * @param string $name Method name.
@@ -400,20 +411,20 @@ class Input extends Singleton implements InputInterface
      * @return self
      * @throws InvalidValue If server configuration is invalid.
      */
-    protected function build(bool $serverRequired)
+    protected function build(array $config, bool $serverRequired)
     {
         // server is require
-        if ($serverRequired && !isset($this->config['server']) && !is_array($this->config['server'])) {
+        if ($serverRequired && !isset($config['server']) && !is_array($config['server'])) {
             throw new InvalidValue('server is a required configuration value to build input.');
         }
 
         // load the "input" keys
         // usually post, get, files, cookie, request, server
-        $this->setInput($this->config);
+        $this->setInput($config);
 
         // Set up the internally used values
         // server normalized, get raw, body raw
-        $this->setInternal($this->config);
+        $this->setInternal($config);
 
         // determine based on input (strings)
         $this->requestType = $this->getRequestType();
@@ -435,19 +446,9 @@ class Input extends Singleton implements InputInterface
         logMsg('INFO', __METHOD__);
         logMsg('DEBUG', '', $config);
 
-        // we need server in order to detect some internal application functions
-        // so we store our own internal version
-        if (isset($config['server'])) {
-            foreach ($config['server'] as $key => $value) {
-                $this->input['server'][$this->normalize($key)] = $value;
-            }
-        }
-
         // load the standard input variables
         foreach ($this->config['valid input keys'] as $key) {
-            if ($key != 'server') {
-                $this->input[$key] = is_array($config[$key]) ? $config[$key] : [];
-            }
+            $this->input[$key] = is_array($config[$key] ?? null) ? $config[$key] : [];
         }
 
         // auto detected body
@@ -465,7 +466,10 @@ class Input extends Singleton implements InputInterface
 
         // most raw form of server parameters
         if (isset($config['server'])) {
+            // save the raw server array
             $this->internal['server'] = $config['server'];
+            // save a normalized version of server array
+            $this->input['server'] = $this->normalizeServerKeys($config['server']);
         }
 
         // most raw form of get parameters
@@ -499,33 +503,10 @@ class Input extends Singleton implements InputInterface
             throw new InvalidValue($type);
         }
 
-        // set the value to default unless we find something else
-        $value = $default;
-
-        // special case for 'server'
         if ($type == 'server') {
-            if ($key == null) {
-                $value = $this->internal['server'];
-            } else {
-                // normalize the server key
-                $key = $this->normalize($key);
-                $httpKey = $this->normalize('http-' . $key);
-
-                if (isset($this->input['server'][$key])) {
-                    $value = $this->input['server'][$key];
-                } elseif (isset($this->input['server'][$httpKey])) {
-                    $value = $this->input['server'][$httpKey];
-                }
-            }
+            $value = $key === null ? $this->internal['server'] : ($this->input['server'][$this->normalizeServerKey($key)] ?? $default);
         } else {
-            // standard input key
-            if ($key === null) {
-                // if they didn't provide a key they want back the entire config file array
-                $value = $this->input[$type];
-            } elseif (isset($this->input[$type][$key])) {
-                // if they did provide a key return the matching key in the config file
-                $value = $this->input[$type][$key];
-            }
+            $value = $key === null ? $this->input[$type] : ($this->input[$type][$key] ?? $default);
         }
 
         return $value;
@@ -613,22 +594,17 @@ class Input extends Singleton implements InputInterface
         logMsg('INFO', __METHOD__);
         logMsg('DEBUG', '', ['body' => $body]);
 
-        $detected = $body;
+        $contentType = $this->extract('server', 'CONTENT_TYPE', '');
+        $requestMethod = $this->getMethod();
 
-        if ($this->config['auto detect body']) {
-            // try to convert to json array if it's JSON
-            $jsonObject = json_decode($body, true);
-
-            if ($jsonObject !== null) {
-                $detected = $jsonObject;
-            } elseif (!empty($body)) {
-                $detected = $this->parseStr($body);
-            }
+        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array(strtoupper($requestMethod), ['PUT', 'DELETE'])) {
+            parse_str($body, $data);
+            $body = $this->parseStr($body);
+        } elseif (strpos($contentType, 'application/json') === 0 && in_array(strtoupper($requestMethod), ['POST', 'PUT', 'DELETE'])) {
+            $body = json_decode($body, true);
         }
 
-        //logMsg('DEBUG', var_export($detected, true));
-
-        return $detected;
+        return $body;
     }
 
     /**
@@ -671,5 +647,33 @@ class Input extends Singleton implements InputInterface
 
         // return result array
         return $array;
+    }
+
+    /**
+     * Normalizes server array keys.
+     *
+     * @param array $serverArray
+     * @return array
+     */
+    protected function normalizeServerKeys(array $serverArray): array
+    {
+        $clean = [];
+
+        foreach ($serverArray as $key => $value) {
+            $clean[$this->normalizeServerKey($key)] = $value;
+        }
+
+        return $clean;
+    }
+
+    /**
+     * Normalizes a single server key.
+     *
+     * @param string $key
+     * @return string
+     */
+    protected function normalizeServerKey(string $key): string
+    {
+        return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
     }
 }

@@ -19,7 +19,6 @@ use orange\framework\exceptions\container\UnableToResolve;
 use orange\framework\exceptions\container\FailedToAutoWire;
 use orange\framework\exceptions\container\ConstructorNotPublic;
 
-
 /**
  * Overview of Container.php
  *
@@ -31,10 +30,10 @@ use orange\framework\exceptions\container\ConstructorNotPublic;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Acts as a registry for services (objects, closures, values, aliases).
- * 	•	Handles service resolution when code requests a dependency.
- * 	•	Supports auto-wiring via reflection (constructors can be resolved automatically).
- * 	•	Implements a singleton pattern—only one container instance exists.
+ *  •   Acts as a registry for services (objects, closures, values, aliases).
+ *  •   Handles service resolution when code requests a dependency.
+ *  •   Supports auto-wiring via reflection (constructors can be resolved automatically).
+ *  •   Implements a singleton pattern—only one container instance exists.
  *
  * This allows developers to define services once and access them consistently anywhere in the app.
  *
@@ -43,42 +42,42 @@ use orange\framework\exceptions\container\ConstructorNotPublic;
  * 2. Service Registration
  *
  * The container can register services in multiple ways:
- * 	1.	Values / Objects → simple values or prebuilt objects stored as-is.
- * 	2.	Closures → lazy-loaded services created by a closure (the container is passed in).
- * 	3.	Aliases → shortcuts or alternative names for existing services.
- * 	4.	Auto-wired classes → if a service is registered with a class name, the container will use reflection to resolve its constructor arguments automatically.
+ *  1.  Values / Objects → simple values or prebuilt objects stored as-is.
+ *  2.  Closures → lazy-loaded services created by a closure (the container is passed in).
+ *  3.  Aliases → shortcuts or alternative names for existing services.
+ *  4.  Auto-wired classes → if a service is registered with a class name, the container will use reflection to resolve its constructor arguments automatically.
  *
  * ⸻
  *
  * 3. Service Retrieval
- * 	•	Services can be accessed via:
- * 	•	Property syntax: $container->logger
- * 	•	Method call: $container->get('logger')
- * 	•	If the service was registered as a closure or class, it is instantiated on demand.
- * 	•	Auto-wired services are created by analyzing constructor arguments and resolving dependencies from the container.
+ *  •   Services can be accessed via:
+ *  •   Property syntax: $container->logger
+ *  •   Method call: $container->get('logger')
+ *  •   If the service was registered as a closure or class, it is instantiated on demand.
+ *  •   Auto-wired services are created by analyzing constructor arguments and resolving dependencies from the container.
  *
  * ⸻
  *
  * 4. Service Lifecycle & Singleton Conversion
- * 	•	If a service is an Orange Singleton (extends Singleton or SingletonArrayObject), the container automatically converts it into a single stored instance so it isn’t recreated multiple times.
- * 	•	Other services (like closures) can also be promoted to singletons after first resolution.
+ *  •   If a service is an Orange Singleton (extends Singleton or SingletonArrayObject), the container automatically converts it into a single stored instance so it isn’t recreated multiple times.
+ *  •   Other services (like closures) can also be promoted to singletons after first resolution.
  *
  * ⸻
  *
  * 5. Helper Features
- * 	•	Aliases resolution with loop protection (max depth 16).
- * 	•	Debugging via debugInfo() showing registered service types.
- * 	•	Inspection methods like getServices() to list what’s inside.
- * 	•	Unset / Remove to drop services.
+ *  •   Aliases resolution with loop protection (max depth 16).
+ *  •   Debugging via debugInfo() showing registered service types.
+ *  •   Inspection methods like getServices() to list what’s inside.
+ *  •   Unset / Remove to drop services.
  *
  * ⸻
  *
  * 6. Error Handling
  *
  * The container throws specialized exceptions when:
- * 	•	A service is not found (ServiceNotFound).
- * 	•	An alias chain loops too deep (InvalidValue).
- * 	•	Auto-wiring fails due to reflection issues (FailedToAutoWire, UnableToResolve, ConstructorNotPublic).
+ *  •   A service is not found (ServiceNotFound).
+ *  •   An alias chain loops too deep (InvalidValue).
+ *  •   Auto-wiring fails due to reflection issues (FailedToAutoWire, UnableToResolve, ConstructorNotPublic).
  *
  * This ensures clear debugging when a service cannot be resolved.
  *

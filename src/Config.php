@@ -7,7 +7,6 @@ namespace orange\framework;
 use orange\framework\base\SingletonArrayObject;
 use orange\framework\interfaces\CacheInterface;
 use orange\framework\interfaces\ConfigInterface;
-use orange\framework\exceptions\config\ConfigNotFound;
 use orange\framework\exceptions\filesystem\DirectoryNotFound;
 use orange\framework\exceptions\config\InvalidConfigurationValue;
 use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
@@ -23,70 +22,70 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  * ⸻
  *
  * 1. Core Purpose
- * 	•	Provides a unified way to load configuration files.
- * 	•	Supports multiple directories (with priority order).
- * 	•	Allows environment-specific overrides.
- * 	•	Implements caching of config metadata for performance.
- * 	•	Gives developers array-style access (via ArrayObject) as well as method access.
+ *  •   Provides a unified way to load configuration files.
+ *  •   Supports multiple directories (with priority order).
+ *  •   Allows environment-specific overrides.
+ *  •   Implements caching of config metadata for performance.
+ *  •   Gives developers array-style access (via ArrayObject) as well as method access.
  *
  * ⸻
  *
  * 2. Key Properties
- * 	•	$configuration → stores loaded configurations indexed by filename.
- * 	•	$searchDirectories → list of directories where configuration files will be searched.
- * 	•	$foundDirectoriesByName → map of config file names to their discovered file paths across directories.
+ *  •   $configuration → stores loaded configurations indexed by filename.
+ *  •   $searchDirectories → list of directories where configuration files will be searched.
+ *  •   $foundDirectoriesByName → map of config file names to their discovered file paths across directories.
  *
  * ⸻
  *
  * 3. Initialization
- * 	•	Constructor is protected (Singleton enforced).
- * 	•	Accepts:
- * 	•	$config → array of directories to search.
- * 	•	$cacheService → optional cache service implementing CacheInterface.
- * 	•	If caching is enabled:
- * 	•	Tries to load cached map of config files.
- * 	•	If cache is missing, builds the map and stores it.
- * 	•	If no cache service, always builds the map fresh.
+ *  •   Constructor is protected (Singleton enforced).
+ *  •   Accepts:
+ *  •   $config → array of directories to search.
+ *  •   $cacheService → optional cache service implementing CacheInterface.
+ *  •   If caching is enabled:
+ *  •   Tries to load cached map of config files.
+ *  •   If cache is missing, builds the map and stores it.
+ *  •   If no cache service, always builds the map fresh.
  *
  * ⸻
  *
  * 4. Configuration Loading
- * 	•	load($filename)
- * 	•	Finds all files with that name (e.g., database.php) across directories.
- * 	•	Includes them, ensuring each returns an array.
- * 	•	Merges them using array_replace_recursive() (later directories override earlier ones).
- * 	•	Stores result in $configuration[$filename].
- * 	•	Error handling
- * 	•	Throws ConfigFileDidNotReturnAnArray if included file does not return an array.
+ *  •   load($filename)
+ *  •   Finds all files with that name (e.g., database.php) across directories.
+ *  •   Includes them, ensuring each returns an array.
+ *  •   Merges them using array_replace_recursive() (later directories override earlier ones).
+ *  •   Stores result in $configuration[$filename].
+ *  •   Error handling
+ *  •   Throws ConfigFileDidNotReturnAnArray if included file does not return an array.
  *
  * ⸻
  *
  * 5. Access Methods
- * 	•	Magic getter (__get) → $config->database fetches the whole database.php array.
- * 	•	offsetExists() → array-style access to checks if a config file exists.
- * 	•	offsetGet() → array-style access to config file ($config['database']).
- * 	•	get($filename, $key = null, $default = null)
- * 	•	Fetches entire config file (if $key is null).
- * 	•	Fetches specific key with fallback default.
+ *  •   Magic getter (__get) → $config->database fetches the whole database.php array.
+ *  •   offsetExists() → array-style access to checks if a config file exists.
+ *  •   offsetGet() → array-style access to config file ($config['database']).
+ *  •   get($filename, $key = null, $default = null)
+ *  •   Fetches entire config file (if $key is null).
+ *  •   Fetches specific key with fallback default.
  *
  * ⸻
  *
  * 6. Support Methods
- * 	•	buildArray() → scans all search directories for *.php config files and builds an index.
- * 	•	Uses glob() to find files.
- * 	•	Returns array like:
- * 	     [
+ *  •   buildArray() → scans all search directories for *.php config files and builds an index.
+ *  •   Uses glob() to find files.
+ *  •   Returns array like:
+ *       [
  *       'database' => ['/path/to/config/database.php', '/path/to/env/database.php'],
  *       'app' => ['/path/to/config/app.php']
- * 	     ]
+ *       ]
  *
  * 7. Big Picture
- * 	•	Config.php is the backbone for configuration management in the framework.
- * 	•	It ensures configs are:
- * 	•	Centralized
- * 	•	Overridable by environment
- * 	•	Efficiently merged and cached
- * 	•	Provides flexible access ($config->file, $config['file'], $config->get('file','key')).
+ *  •   Config.php is the backbone for configuration management in the framework.
+ *  •   It ensures configs are:
+ *  •   Centralized
+ *  •   Overridable by environment
+ *  •   Efficiently merged and cached
+ *  •   Provides flexible access ($config->file, $config['file'], $config->get('file','key')).
  *
  * @package orange\framework
  */
@@ -102,7 +101,7 @@ class Config extends SingletonArrayObject implements ConfigInterface
      */
     protected array $searchDirectories = [];
 
-    protected array $foundDirectoriesByName = [];
+    protected array $foundConfigFiles = [];
 
     /**
      * Protected constructor to enforce Singleton usage.
@@ -121,12 +120,12 @@ class Config extends SingletonArrayObject implements ConfigInterface
             $cacheKey = ENVIRONMENT . '\\' . __CLASS__;
 
             if ($cached = $cacheService->get($cacheKey)) {
-                $this->foundDirectoriesByName = $cached;
+                $this->foundConfigFiles = $cached;
             } else {
-                $cacheService->set($cacheKey, $this->foundDirectoriesByName = $this->buildArray());
+                $cacheService->set($cacheKey, $this->foundConfigFiles = $this->findAllConfigFilesInEachDirectory());
             }
         } else {
-            $this->foundDirectoriesByName = $this->buildArray();
+            $this->foundConfigFiles = $this->findAllConfigFilesInEachDirectory();
         }
     }
 
@@ -201,12 +200,12 @@ class Config extends SingletonArrayObject implements ConfigInterface
         $config = [];
 
         // Check if the configuration file exists in the found directories
-        if (isset($this->foundDirectoriesByName[$filename])) {
+        if (isset($this->foundConfigFiles[$filename])) {
             // Check if configuration has already been loaded
             if (!isset($this->configuration[$filename])) {
                 $foundConfigs = [];
 
-                foreach ($this->foundDirectoriesByName[$filename] as $configFile) {
+                foreach ($this->foundConfigFiles[$filename] as $configFile) {
                     if (!is_array($includedConfig = include $configFile)) {
                         throw new ConfigFileDidNotReturnAnArray('"' . $configFile . '" did not return an array.');
                     }
@@ -231,7 +230,7 @@ class Config extends SingletonArrayObject implements ConfigInterface
      *
      * @return array
      */
-    protected function buildArray(): array
+    protected function findAllConfigFilesInEachDirectory(): array
     {
         $found = [];
 
@@ -239,11 +238,11 @@ class Config extends SingletonArrayObject implements ConfigInterface
         foreach ($this->searchDirectories as $searchDirectory) {
             foreach (glob($searchDirectory . DIRECTORY_SEPARATOR . '*.php') as $file) {
                 $name = basename($file, '.php');
-
+                // if we haven't added this config then we need to add it now.
                 if (!isset($found[$name])) {
                     $found[$name] = [];
                 }
-
+                // get canonicalized absolute pathname
                 $found[$name][] = realpath($file);
             }
         }

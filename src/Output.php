@@ -23,68 +23,68 @@ use orange\framework\exceptions\output\Output as OutputException;
  * ⸻
  *
  * 1. Core Responsibilities
- * 	•	Response management: keeps track of what content and headers should be sent.
- * 	•	Headers and status codes: allows setting, replacing, and flushing HTTP headers, as well as configuring response codes.
- * 	•	Content-Type and charset: ensures correct MIME type and character encoding are applied.
- * 	•	Redirects: performs HTTP redirects with configurable status codes.
- * 	•	HTTPS enforcement: can force secure connections by redirecting to https://.
- * 	•	Final send: flushes headers and body to the client, with optional script termination.
+ *  •   Response management: keeps track of what content and headers should be sent.
+ *  •   Headers and status codes: allows setting, replacing, and flushing HTTP headers, as well as configuring response codes.
+ *  •   Content-Type and charset: ensures correct MIME type and character encoding are applied.
+ *  •   Redirects: performs HTTP redirects with configurable status codes.
+ *  •   HTTPS enforcement: can force secure connections by redirecting to https://.
+ *  •   Final send: flushes headers and body to the client, with optional script termination.
  *
  * ⸻
  *
  * 2. Key Properties
- * 	•	$output → string buffer holding response body.
- * 	•	$headers → array of headers waiting to be sent.
- * 	•	$responseCode → numeric HTTP status code (default 200).
- * 	•	$responseCodesInternalStringKeys → mapping of string names (like "ok") to numeric codes.
- * 	•	$contentType → MIME type of response (e.g., text/html).
- * 	•	$charSet → response charset (e.g., UTF-8).
- * 	•	$mimes → supported MIME type mappings.
- * 	•	$input → reference to the request InputInterface (needed for HTTPS enforcement and CLI checks).
+ *  •   $output → string buffer holding response body.
+ *  •   $headers → array of headers waiting to be sent.
+ *  •   $responseCode → numeric HTTP status code (default 200).
+ *  •   $responseCodesInternalStringKeys → mapping of string names (like "ok") to numeric codes.
+ *  •   $contentType → MIME type of response (e.g., text/html).
+ *  •   $charSet → response charset (e.g., UTF-8).
+ *  •   $mimes → supported MIME type mappings.
+ *  •   $input → reference to the request InputInterface (needed for HTTPS enforcement and CLI checks).
  *
  * ⸻
  *
  * 3. Important Methods
- * 	•	Redirects & Security
- * 	•	redirect($url, $responseCode, $exit) → clears output, sets Location header, and issues redirect.
- * 	•	forceHttps() → ensures secure scheme, redirects if not HTTPS.
- * 	•	Output Handling
- * 	•	write($string, $append) → writes content into buffer.
- * 	•	get() → retrieves current buffer content.
- * 	•	flush() → clears buffer.
- * 	•	flushAll() → clears both headers and buffer.
- * 	•	send($exit) → sends headers and content to client, optionally exits script.
- * 	•	Headers
- * 	•	header($value, $replace, $prepend) → sets a header with flexible replacement rules.
- * 	•	getHeaders() → retrieves all queued headers.
- * 	•	flushHeaders() → clears all headers.
- * 	•	Response Codes
- * 	•	responseCode($code) → sets numeric or string-mapped HTTP status.
- * 	•	getResponseCode() → retrieves current status code.
- * 	•	Content-Type and Charset
- * 	•	contentType($type, $fallback) → sets MIME type with fallback resolution.
- * 	•	getContentType() → returns current type.
- * 	•	charSet($charSet) → sets charset and updates headers.
- * 	•	getCharSet() → returns current charset.
- * 	•	Helpers for headers and output
- * 	•	getContentTypeHeader() → builds Content-Type header string.
- * 	•	getResponseHeader() → builds HTTP status header string.
- * 	•	phpEcho(), phpExit(), phpHeader() → wrapper methods around PHP functions, useful for testing and overriding.
+ *  •   Redirects & Security
+ *  •   redirect($url, $responseCode, $exit) → clears output, sets Location header, and issues redirect.
+ *  •   forceHttps() → ensures secure scheme, redirects if not HTTPS.
+ *  •   Output Handling
+ *  •   write($string, $append) → writes content into buffer.
+ *  •   get() → retrieves current buffer content.
+ *  •   flush() → clears buffer.
+ *  •   flushAll() → clears both headers and buffer.
+ *  •   send($exit) → sends headers and content to client, optionally exits script.
+ *  •   Headers
+ *  •   header($value, $replace, $prepend) → sets a header with flexible replacement rules.
+ *  •   getHeaders() → retrieves all queued headers.
+ *  •   flushHeaders() → clears all headers.
+ *  •   Response Codes
+ *  •   responseCode($code) → sets numeric or string-mapped HTTP status.
+ *  •   getResponseCode() → retrieves current status code.
+ *  •   Content-Type and Charset
+ *  •   contentType($type, $fallback) → sets MIME type with fallback resolution.
+ *  •   getContentType() → returns current type.
+ *  •   charSet($charSet) → sets charset and updates headers.
+ *  •   getCharSet() → returns current charset.
+ *  •   Helpers for headers and output
+ *  •   getContentTypeHeader() → builds Content-Type header string.
+ *  •   getResponseHeader() → builds HTTP status header string.
+ *  •   phpEcho(), phpExit(), phpHeader() → wrapper methods around PHP functions, useful for testing and overriding.
  *
  * ⸻
  *
  * 4. Error Handling
- * 	•	Throws OutputException when an invalid content type or HTTP status code is provided.
- * 	•	Strictly validates status codes against configured list.
+ *  •   Throws OutputException when an invalid content type or HTTP status code is provided.
+ *  •   Strictly validates status codes against configured list.
  *
  * ⸻
  *
  * 5. Big Picture
  *
  * The Output class is the final stage in the Orange framework’s request lifecycle. After routing and controller execution, this class:
- * 	1.	Assembles the response (headers, body, status code).
- * 	2.	Ensures correct protocol, content type, and charset.
- * 	3.	Flushes everything to the client in a controlled and testable way.
+ *  1.  Assembles the response (headers, body, status code).
+ *  2.  Ensures correct protocol, content type, and charset.
+ *  3.  Flushes everything to the client in a controlled and testable way.
  *
  * It centralizes output logic so controllers don’t need to deal with raw header() or echo calls.
  *
@@ -161,6 +161,11 @@ class Output extends Singleton implements OutputInterface
         $this->responseCode($this->responseCode);
         $this->contentType($this->config['contentType']);
         $this->charSet($this->config['charSet']);
+    }
+
+    public function __toString(): string
+    {
+        return $this->output;
     }
 
     /**
