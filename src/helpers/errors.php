@@ -52,11 +52,6 @@ if (!function_exists('redirect301')) {
 if (!function_exists('errorHandler')) {
     function errorHandler(int $errno, string $errstr, string $errfile, int $errline): bool
     {
-        if (!(error_reporting() & $errno)) {
-            // This error code is not included in error_reporting
-            return false;
-        }
-
         throw new \ErrorException($errstr, 0, $errno, $errfile, $errline);
     }
 }
@@ -69,6 +64,12 @@ if (!function_exists('errorHandler')) {
 if (!function_exists('exceptionHandler')) {
     function exceptionHandler(Throwable $exception): void
     {
+        // if error reporting is off DIE HARD with a 500;
+        if (error_reporting() == 0) {
+            http_response_code(500);
+            exit(1);
+        }
+
         // make a direct instance of Error Class
         // override this function if you want to use your own class
         \orange\framework\Error::getInstance([], container(), $exception);

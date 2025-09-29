@@ -599,6 +599,8 @@ class Application
 
     protected static function setupConfigDirectories(): void
     {
+        // did they provide a config directories config setting?
+        // if not we will use the sydtem defaults
         if (isset(static::$config['config directories'])) {
             // let's make sure they included the config directories
             if (!is_array(static::$config['config directories'])) {
