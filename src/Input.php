@@ -598,7 +598,6 @@ class Input extends Singleton implements InputInterface
         $requestMethod = $this->getMethod();
 
         if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array(strtoupper($requestMethod), ['PUT', 'DELETE'])) {
-            parse_str($body, $data);
             $body = $this->parseStr($body);
         } elseif (strpos($contentType, 'application/json') === 0 && in_array(strtoupper($requestMethod), ['POST', 'PUT', 'DELETE'])) {
             $body = json_decode($body, true);
