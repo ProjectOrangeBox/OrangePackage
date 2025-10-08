@@ -82,7 +82,6 @@ class Input extends Singleton implements InputInterface
     public function requestUri(): string
     {
         $uri = parse_url($this->server('request_uri', ''), self::PATH);
-var_dump($uri);
         logMsg('INFO', __METHOD__ . ' ' . $uri);
 
         return $uri;
