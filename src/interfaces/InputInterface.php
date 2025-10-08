@@ -29,6 +29,7 @@ interface InputInterface
     public function requestUri(): string;
     public function uriSegment(int $segmentNumber): string;
 
+    public function contentType(bool $asLowercase = true): string;
     public function requestMethod(bool $asLowercase = true): string;
     public function requestType(bool $asLowercase = true): string;
 
@@ -36,23 +37,10 @@ interface InputInterface
     public function isCliRequest(): bool;
     public function isHttpsRequest(bool $asString = false): bool|string;
 
-    // handle get, post, server, files, cookie, request, foo, bar
-    // as long as it matches a config value sent in and is in 'valid input keys'
-    // $value = $input->request('keyname', true);
-    public function __call(string $name, array $arguments): mixed;
-    public function __get(string $name);
-    public function __isset(string $name): bool;
-
-    public function has(string $name, ?string $key = null): bool;
-
-    // get the most basic url based or body based input
-    public function rawGet(): string;
-    public function rawBody(): string;
-    public function rawServer(): string;
-
-    // returns ENTIRE input array
-    public function copy(): array;
-
-    // replaces input
-    public function replace(array $input): self;
+    public function request(string $key, mixed $default = null): mixed;
+    public function query(string $key, mixed $default = null): mixed;
+    public function server(string $key, mixed $default = null): mixed;
+    public function header(string $key, mixed $default = null): mixed;
+    public function cookie(string $key, mixed $default = null): mixed;
+    public function file(string $key, mixed $default = null): mixed;
 }

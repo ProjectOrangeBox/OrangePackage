@@ -368,11 +368,10 @@ class Application
         if (!isset(static::$globals)) {
             // initialize the globals array
             static::$globals = [
-                'post' => $_POST,
+                'query' => $_GET,
+                'request' => $_POST,
                 'server' => $_SERVER,
                 'cookie' => $_COOKIE,
-                'request' => $_REQUEST,
-                'body' => file_get_contents('php://input'),
                 'files' => $_FILES,
                 'php_sapi' => PHP_SAPI, // string
                 'stdin' => defined('STDIN'), // boolean

@@ -5,120 +5,21 @@ declare(strict_types=1);
 namespace orange\framework;
 
 use orange\framework\base\Singleton;
-use orange\framework\exceptions\InvalidValue;
 use orange\framework\interfaces\InputInterface;
 use orange\framework\traits\ConfigurationTrait;
 
-/**
- * Overview of Input.php
- *
- * This file defines the Input class in the orange\framework namespace.
- * It is responsible for capturing, normalizing, and managing all incoming request data (HTTP or CLI).
- * It follows the singleton pattern, ensuring only one instance exists and can be accessed globally.
- *
- * ⸻
- *
- * 1. Core Purpose
- *  •   Acts as the central request handler for the framework.
- *  •   Collects data from GET, POST, FILES, COOKIE, REQUEST, SERVER, and raw request body.
- *  •   Normalizes keys for consistency.
- *  •   Detects the request method, type (HTML, AJAX, CLI), and whether it is HTTPS.
- *  •   Provides developers with an easy API to extract input safely.
- *
- * ⸻
- *
- * 2. Key Properties
- *  •   $input → normalized request data (GET, POST, etc.).
- *  •   $internal → raw values such as the original server array and raw body.
- *  •   $requestType → type of request (html, ajax, cli).
- *  •   $requestMethod → HTTP method (get, post, put, etc., or cli).
- *  •   $isHttps → whether the request is HTTPS.
- *  •   $remapKeys → allows remapping of input keys for normalization.
- *
- * ⸻
- *
- * 3. Initialization
- *  •   The constructor takes a configuration array, merges it with defaults, and builds the input structure.
- *  •   build():
- *  •   Validates server configuration.
- *  •   Populates $input and $internal.
- *  •   Determines request type, method, and HTTPS status.
- *
- * ⸻
- *
- * 4. Data Access Methods
- *  •   replace($replace) → updates config with new values (with key restrictions).
- *  •   copy() → returns a full snapshot of the request (including raw body & server).
- *  •   requestUri() / uriSegment($n) → retrieves request URI and path segments.
- *  •   getUrl($component) → extracts parsed parts of the URL.
- *  •   requestMethod() / requestType() → retrieves normalized method and type.
- *  •   isAjaxRequest() / isCliRequest() / isHttpsRequest() → checks request conditions.
- *  •   rawGet() / rawBody() → provides raw GET query and raw body.
- *  •   has($name, $key) → check if input key exists.
- *  •   Magic access:
- *  •   __call() → dynamically fetch values ($input->post('id')).
- *  •   __get() → allows property-style access ($input->post).
- *
- * ⸻
- *
- * 5. Internal Processing
- *  •   extract($type, $key, $default) → safely fetches values from normalized input.
- *  •   getRequestType() → detects HTML, AJAX, or CLI request.
- *  •   getMethod() → resolves HTTP method (with overrides like _method).
- *  •   getHttps() → detects HTTPS from server variables.
- *  •   detectBody() → auto-converts raw body into JSON array or parsed query string if possible.
- *  •   parseStr() → helper to parse query strings into arrays.
- *
- * ⸻
- *
- * 6. Error Handling
- *  •   If invalid keys or input types are accessed, it throws InvalidValue exceptions.
- *  •   Protects against direct reliance on untrusted superglobals by funneling all input through controlled APIs.
- *
- * ⸻
- *
- * Big Picture
- *
- * Input.php is the request abstraction layer for the Orange framework.
- * It standardizes how requests are read, parsed, and validated, ensuring consistent behavior across HTTP and CLI.
- * This helps keep controller code clean, secure, and environment-agnostic.
- *
- * @package orange\framework
- */
 class Input extends Singleton implements InputInterface
 {
     /** include ConfigurationTrait methods */
     use ConfigurationTrait;
 
-    /**
-     * Stores input data.
-     */
-    protected array $input = [];
-
-    /**
-     * Stores internal values such as server and raw body.
-     */
-    protected array $internal = [];
-
-    /**
-     * Type of the request (e.g., AJAX, CLI, etc.).
-     */
-    protected string $requestType = '';
-
-    /**
-     * HTTP method used for the request (e.g., GET, POST).
-     */
-    protected string $requestMethod = '';
-
-    /**
-     * Indicates whether the request is HTTPS.
-     */
-    protected bool $isHttps = false;
-
-    /**
-     * Stores remapped keys for normalization.
-     */
-    protected array $remapKeys = [];
+    protected array $query = [];
+    protected array $request = [];
+    protected array $server = [];
+    protected array $cookies = [];
+    protected array $files = [];
+    protected array $headers = [];
+    protected string $input;
 
     /**
      * Protected constructor to enforce the singleton pattern.
@@ -131,80 +32,62 @@ class Input extends Singleton implements InputInterface
 
         $this->config = $this->mergeConfigWith($config, false);
 
-        $this->remapKeys = $this->config['remap keys'] ? array_change_key_case($this->config['remap keys'], CASE_LOWER) : [];
+        $this->query = $this->config['get'] ?? [];
+        $this->request = $this->config['post'] ?? [];
+        $this->cookies = $this->config['cookies'] ?? [];
+        $this->files = $this->config['files'] ?? [];
+        $this->input = $this->config['input'] ?? '';
 
-        // server IS required when we build the input array
-        $this->build($this->config, true);
+        $this->setServer($this->config['server'] ?? []);
+        $this->convertContent();
     }
 
-    /**
-     * Replaces configuration values with new ones.
-     *
-     * @param array $replace Replacement data.
-     * @return self
-     * @throws InvalidValue If invalid keys are provided.
-     */
-    public function replace(array $replace): self
+    public function request(string $key, mixed $default = null): mixed
     {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', $replace);
-
-        // find keys you aren't allowed to replace
-        $result = array_diff(array_keys($replace), $this->config['replaceable input keys']);
-
-        // if they passed in a key not in the 'replaceable input keys' array this will NOT be empty
-        if (!empty($result)) {
-            // if there are any keys they are trying to replace which they aren't allowed
-            throw new InvalidValue('You can not replace "' . implode(', ', $result) . '".');
-        }
-
-        // ok merge them in only on key not recursively
-        $this->config = array_replace($this->config, $replace);
-
-        // server NOT required when we build the input array
-        return $this->build($this->config, false);
+        return $this->request[$key] ?? $default;
     }
 
-    /**
-     * Returns a copy of the input data, including raw body and server data.
-     *
-     * @return array
-     */
-    public function copy(): array
+    public function query(string $key, mixed $default = null): mixed
     {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', $this->input);
-
-        $input = $this->input;
-
-        // put the raw body back into body as a string
-        $input['body'] = $this->rawBody();
-        // put the raw server back into server as an array
-        $input['server'] = $this->internal['server'];
-
-        return $input;
+        return $this->query[$key] ?? $default;
     }
 
-    /**
-     * Retrieves the request URI.
-     *
-     * @return string
-     */
+    public function server(string $key, mixed $default = null): mixed
+    {
+        return $this->server[$this->normalizeServerKey($key)] ?? $default;
+    }
+
+    public function header(string $key, mixed $default = null): mixed
+    {
+        return $this->headers[$this->normalizeServerKey($key)] ?? $default;
+    }
+
+    public function cookie(string $key, mixed $default = null): mixed
+    {
+        return $this->cookies[$key] ?? $default;
+    }
+
+    public function file(string $key, mixed $default = null): mixed
+    {
+        return $this->files[$key] ?? $default;
+    }
+
+    public function getUrl(int $component = -1): int|string|array|null|false
+    {
+        logMsg('INFO', __METHOD__ . ' ' . $component);
+
+        return parse_url($this->server('request_uri', ''), $component);
+    }
+
     public function requestUri(): string
     {
-        $uri = parse_url($this->extract('server', 'request_uri', ''), self::PATH);
-
+        $uri = parse_url($this->server('request_uri', ''), self::PATH);
+var_dump($uri);
         logMsg('INFO', __METHOD__ . ' ' . $uri);
 
         return $uri;
     }
 
-    /**
-     * Retrieves a specific segment of the URI.
-     *
-     * @param int $segmentNumber Segment number (1-based index).
-     * @return string
-     */
     public function uriSegment(int $segmentNumber): string
     {
         logMsg('INFO', __METHOD__ . ' ' . $segmentNumber);
@@ -214,465 +97,118 @@ class Input extends Singleton implements InputInterface
         return $segs[$segmentNumber - 1] ?? '';
     }
 
-    /**
-     * Parses the request URL and retrieves specific components.
-     *
-     * @param int $component URL component to retrieve.
-     * @return int|string|array|null|false
-     */
-    public function getUrl(int $component = -1): int|string|array|null|false
+    public function contentType(bool $asLowercase = true): string
     {
-        logMsg('INFO', __METHOD__ . ' ' . $component);
+        $type = $this->server('content type', '');
 
-        return parse_url($this->extract('server', 'request_uri', ''), $component);
+        logMsg('DEBUG', __METHOD__ . $type);
+
+        return $asLowercase ? strtolower($type) : strtoupper($type);
     }
 
-    /**
-     * Retrieves the HTTP request method.
-     *
-     * @param bool $asLowercase Whether to return the method in lowercase.
-     * @return string
-     */
     public function requestMethod(bool $asLowercase = true): string
-    {
-        $method = ($asLowercase) ? strtolower($this->requestMethod) : strtoupper($this->requestMethod);
-
-        logMsg('INFO', __METHOD__ . ' ' . $method);
-
-        return $method;
-    }
-
-    /**
-     * Retrieves the request type.
-     *
-     * @param bool $asLowercase Whether to return the type in lowercase.
-     * @return string
-     */
-    public function requestType(bool $asLowercase = true): string
-    {
-        $type = ($asLowercase) ? strtolower($this->requestType) : strtoupper($this->requestType);
-
-        logMsg('INFO', __METHOD__ . ' ' . $type);
-
-        return $type;
-    }
-
-    /**
-     * Checks if the request is an AJAX request.
-     *
-     * @return bool
-     */
-    public function isAjaxRequest(): bool
-    {
-        return $this->requestType(true) == 'ajax';
-    }
-
-    /**
-     * Checks if the request is a CLI request.
-     *
-     * @return bool
-     */
-    public function isCliRequest(): bool
-    {
-        return $this->requestType(true) == 'cli';
-    }
-
-    /**
-     * Checks if the request is HTTPS.
-     *
-     * @param bool $asString Return as string instead of bool.
-     * @return bool|string
-     */
-    public function isHttpsRequest(bool $asString = false): bool|string
-    {
-        logMsg('INFO', __METHOD__ . ' ' . $asString);
-
-        $return = $this->isHttps;
-
-        if ($asString) {
-            $return = ($this->isHttps) ? 'https' : 'http';
-        }
-
-        return $return;
-    }
-
-    /**
-     * Retrieves raw GET data.
-     *
-     * @return string
-     */
-    public function rawGet(): string
-    {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', ['get' => $this->internal['get']]);
-
-        return $this->internal['get'];
-    }
-
-    /**
-     * Retrieves raw body data.
-     *
-     * @return string
-     */
-    public function rawBody(): string
-    {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', ['body' => $this->internal['body']]);
-
-        return $this->internal['body'];
-    }
-
-    /**
-     * Retrieves the raw server array.
-     *
-     * @return string
-     */
-    public function rawServer(): string
-    {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', ['server' => $this->internal['server']]);
-
-        return $this->internal['server'];
-    }
-
-    /**
-     * Handles dynamic method calls.
-     *
-     * @param string $name Method name.
-     * @param array $arguments Method arguments.
-     * @return mixed
-     */
-    public function __call(string $name, array $arguments): mixed
-    {
-        logMsg('INFO', __METHOD__ . '[' . $name . ']');
-        logMsg('DEBUG', '', ['name' => $name, 'arguments' => $arguments]);
-
-        $key = $arguments[0] ?? null;
-        $default = $arguments[1] ?? null;
-
-        return $this->extract($name, $key, $default);
-    }
-
-    /**
-     * Handles dynamic property access.
-     *
-     * @param string $name Property name.
-     * @return mixed
-     */
-    public function __get(string $name): mixed
-    {
-        logMsg('INFO', __METHOD__ . ' ' . $name);
-
-        return $this->extract($name, null, null);
-    }
-
-    /**
-     * Checks if a key exists in the input data.
-     *
-     * @param string $name Key name.
-     * @param string|null $key Optional sub-key.
-     * @return bool
-     */
-    public function has(string $name, ?string $key = null): bool
-    {
-        logMsg('INFO', __METHOD__ . ' ' . $name . ' ' . $key);
-
-        // extract throws an InvalidValue exception if a match is not found
-        // so as long as it doesn't throw an exception we
-        // can assume it has been found
-        $found = true;
-
-        try {
-            $this->extract($name, $key, chr(0));
-        } catch (InvalidValue $e) {
-            $found = false;
-        }
-
-        return $found;
-    }
-
-    /**
-     * Magic isset method.
-     *
-     * @param string $name Key name.
-     * @return bool
-     */
-    public function __isset(string $name): bool
-    {
-        logMsg('INFO', __METHOD__ . ' ' . $name);
-
-        return $this->has($name);
-    }
-
-    /**
-     * Builds the input object with configuration values.
-     *
-     * @param bool $serverRequired Whether server configuration is required.
-     * @return self
-     * @throws InvalidValue If server configuration is invalid.
-     */
-    protected function build(array $config, bool $serverRequired)
-    {
-        // server is require
-        if ($serverRequired && !isset($config['server']) && !is_array($config['server'])) {
-            throw new InvalidValue('server is a required configuration value to build input.');
-        }
-
-        // load the "input" keys
-        // usually post, get, files, cookie, request, server
-        $this->setInput($config);
-
-        // Set up the internally used values
-        // server normalized, get raw, body raw
-        $this->setInternal($config);
-
-        // determine based on input (strings)
-        $this->requestType = $this->getRequestType();
-        $this->requestMethod = $this->getMethod();
-
-        // boolean
-        $this->isHttps = $this->getHttps();
-
-        return $this;
-    }
-
-    /**
-     * Sets input data based on configuration.
-     *
-     * @param array $config Configuration array.
-     */
-    protected function setInput(array $config): void
-    {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', $config);
-
-        // load the standard input variables
-        foreach ($this->config['valid input keys'] as $key) {
-            $this->input[$key] = is_array($config[$key] ?? null) ? $config[$key] : [];
-        }
-
-        // auto detected body
-        $this->input['body'] = $this->detectBody($config['body']);
-    }
-
-    /**
-     * Sets internal configuration values.
-     *
-     * @param array $config Configuration array.
-     */
-    protected function setInternal(array $config): void
-    {
-        logMsg('DEBUG', __METHOD__, $config);
-
-        // most raw form of server parameters
-        if (isset($config['server'])) {
-            // save the raw server array
-            $this->internal['server'] = $config['server'];
-            // save a normalized version of server array
-            $this->input['server'] = $this->normalizeServerKeys($config['server']);
-        }
-
-        // most raw form of get parameters
-        $this->internal['get'] = $this->extract('server', 'query-string', '');
-
-        // whatever they sent in for body
-        $this->internal['body'] = $config['body'] ?? '';
-    }
-
-    /**
-     * Extracts a value from the input array.
-     *
-     * @param string $type Input type (e.g., GET, POST).
-     * @param string|null $key Optional key to extract.
-     * @param mixed $default Default value if the key does not exist.
-     * @return mixed
-     * @throws InvalidValue If the type is invalid.
-     */
-    protected function extract(string $type, ?string $key = null, mixed $default = null): mixed
-    {
-        logMsg('DEBUG', __METHOD__, ['type' => $type, 'key' => $key, 'default' => $default]);
-
-        // normalize
-        $type = strtolower($type);
-
-        // rename one key to another key
-        $type = isset($this->remapKeys[$type]) ? strtolower($this->remapKeys[$type]) : $type;
-
-        // does this key even exist?
-        if (!isset($this->input[$type])) {
-            throw new InvalidValue($type);
-        }
-
-        if ($type == 'server') {
-            $value = $key === null ? $this->internal['server'] : ($this->input['server'][$this->normalizeServerKey($key)] ?? $default);
-        } else {
-            $value = $key === null ? $this->input[$type] : ($this->input[$type][$key] ?? $default);
-        }
-
-        return $value;
-    }
-
-    /**
-     * Determines the request type (e.g., HTML, AJAX, CLI).
-     *
-     * @return string
-     */
-    protected function getRequestType(): string
-    {
-        // default to html unless we find something else
-        $requestType = 'html';
-
-        if (($this->extract('server', 'http_x_requested_with', '') == 'xmlhttprequest') || (strpos($this->extract('server', 'http_accept', ''), 'application/json') !== false)) {
-            $requestType = 'ajax';
-        } elseif (strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
-            $requestType = 'cli';
-        }
-
-        logMsg('INFO', __METHOD__ . ' ' . $requestType);
-
-        return $requestType;
-    }
-
-    /**
-     * Determines the HTTP request method.
-     *
-     * @return string
-     */
-    protected function getMethod(): string
     {
         /**
          * You can override the http method by setting on of the following in your http request
          */
         $null = chr(0);
 
-        if ($this->extract('server', 'http_x_http_method_override', $null) !== $null) {
-            $method = $this->extract('server', 'http_x_http_method_override', '');
-        } elseif ($this->extract('get', '_method', $null) !== $null) {
-            $method = $this->extract('get', '_method');
-        } elseif ($this->extract('post', '_method', $null) !== $null) {
-            $method = $this->extract('post', '_method');
-        } elseif ($this->extract('body', '_method', $null) !== $null) {
-            $method = $this->extract('body', '_method');
-        } elseif ($this->extract('server', 'request_method', $null) !== $null) {
-            $method = $this->extract('server', 'request_method', '');
+        if ($this->server('http_x_http_method_override', $null) !== $null) {
+            $method = $this->server('http_x_http_method_override', '');
+        } elseif ($this->query('_method', $null) !== $null) {
+            $method = $this->query('_method');
+        } elseif ($this->request('_method', $null) !== $null) {
+            $method = $this->request('_method');
+        } elseif ($this->server('request_method', $null) !== $null) {
+            $method = $this->server('request_method', '');
         } else {
             // I guess it's a CLI request?
             $method = 'cli';
         }
 
-        // normalize
-        return strtolower($method);
+        logMsg('DEBUG', __METHOD__ . $method);
+
+        return $asLowercase ? strtolower($method) : strtoupper($method);
     }
 
-    /**
-     * Determines if the request is HTTPS.
-     *
-     * @return bool
-     */
-    protected function getHttps(): bool
+    public function requestType(bool $asLowercase = true): string
     {
+        // default to html unless we find something else
+        $requestType = 'html';
+
+        if (($this->server('http_x_requested_with', '') == 'xmlhttprequest') || (strpos($this->server('http_accept', ''), 'application/json') !== false)) {
+            $requestType = 'ajax';
+        } elseif (strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
+            $requestType = 'cli';
+        }
+
+        logMsg('DEBUG', __METHOD__ . $requestType);
+
+        return $asLowercase ? strtolower($requestType) : strtoupper($requestType);
+    }
+
+    public function isAjaxRequest(): bool
+    {
+        return $this->requestType() == 'AJAX';
+    }
+
+    public function isCliRequest(): bool
+    {
+        return $this->requestType() == 'CLI';
+    }
+
+    public function isHttpsRequest(bool $asString = false): bool|string
+    {
+        logMsg('INFO', __METHOD__ . ' ' . $asString);
+
         // set the default to not https unless we find something else
         $isHttps = false;
 
-        if ($this->extract('server', 'https', '') == 'on' || $this->extract('server', 'http_x_forwarded_proto', '') === 'https' || $this->extract('server', 'http_front_end_https', '') !== '') {
+        if ($this->server('https', '') == 'on' || $this->server('http_x_forwarded_proto', '') === 'https' || $this->server('http_front_end_https', '') !== '') {
             $isHttps = true;
         }
 
         logMsg('INFO', __METHOD__ . ' ' . ($isHttps ? 'true' : 'false'));
 
-        return $isHttps;
-    }
+        $return = $isHttps;
 
-    /**
-     * Detects the body of the request and converts it to an array if JSON.
-     *
-     * @param string $body Raw body content.
-     * @return array|string
-     */
-    protected function detectBody(string $body): array|string
-    {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', ['body' => $body]);
-
-        $contentType = $this->extract('server', 'CONTENT_TYPE', '');
-        $requestMethod = $this->getMethod();
-
-        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array(strtoupper($requestMethod), ['PUT', 'DELETE'])) {
-            $body = $this->parseStr($body);
-        } elseif (strpos($contentType, 'application/json') === 0 && in_array(strtoupper($requestMethod), ['POST', 'PUT', 'DELETE'])) {
-            $body = json_decode($body, true);
+        if ($asString) {
+            $return = $isHttps ? 'https' : 'http';
         }
 
-        return $body;
+        return $return;
     }
 
-    /**
-     * Parses a query string into an associative array.
-     *
-     * @param string $string Query string to parse.
-     * @return array
-     */
-    protected function parseStr(string $string): array
+    protected function setServer(array $server): void
     {
-        logMsg('INFO', __METHOD__);
-        logMsg('DEBUG', '', ['string' => $string]);
+        foreach ($server as $key => $value) {
+            $normalizedKey = $this->normalizeServerKey($key);
 
-        // result array
-        $array = [];
+            $this->server[$normalizedKey] = $value;
 
-        // split on outer delimiter
-        // loop through each pair
-        foreach (explode('&', $string) as $keyvalue) {
-            // split into name and value
-            list($name, $value) = explode('=', $keyvalue, 2);
-
-            $value = urldecode($value ?? '');
-
-            // if name already exists
-            if (isset($array[$name])) {
-                // stick multiple values into an array
-                if (is_array($array[$name])) {
-                    $array[$name][] = $value;
-                } else {
-                    $array[$name] = [$array[$name], $value];
-                }
-            } else {
-                // otherwise, simply stick it in a scalar
-                $array[$name] = $value;
+            // CONTENT_* are not prefixed with HTTP_
+            if (strpos($key, 'HTTP_') === 0 || in_array($key, ['CONTENT_LENGTH', 'CONTENT_MD5', 'CONTENT_TYPE'])) {
+                $this->headers[$normalizedKey] = $value;
             }
         }
-
-        logMsg('DEBUG', __METHOD__, $array);
-
-        // return result array
-        return $array;
     }
 
-    /**
-     * Normalizes server array keys.
-     *
-     * @param array $serverArray
-     * @return array
-     */
-    protected function normalizeServerKeys(array $serverArray): array
-    {
-        $clean = [];
-
-        foreach ($serverArray as $key => $value) {
-            $clean[$this->normalizeServerKey($key)] = $value;
-        }
-
-        return $clean;
-    }
-
-    /**
-     * Normalizes a single server key.
-     *
-     * @param string $key
-     * @return string
-     */
     protected function normalizeServerKey(string $key): string
     {
         return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
+    }
+
+    protected function convertContent(): void
+    {
+        $contentType = $this->contentType();
+        $requestMethod = $this->requestMethod();
+
+        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete'])) {
+            parse_str($this->input, $data);
+            $this->request = $data;
+        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete'])) {
+            $data = json_decode($this->input, true);
+            $this->request = $data;
+        }
     }
 }
