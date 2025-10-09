@@ -8,27 +8,28 @@ use orange\framework\exceptions\InvalidValue;
 final class InputTest extends unitTestHelper
 {
     protected $instance;
-    private $default = [
-        'body' => 'name=Johnny%20Appleseed&age=25',
+
+    protected $default = [
+        'query' => [
+            'name' => 'Jenny Appleseed',
+            'age' => 25,
+        ],
         'files' => [],
         'server' => [
             'request_uri' => '/product/123abc',
             'request_method' => 'get',
             'http_x_requested_with' => 'xmlhttprequest',
             'https' => 'on',
-            'http_accept_language' => 'en-US,en;q=0.9',
-            'http_accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'HTTP_ACCEPT_LANGUAGE' => 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,fr;q=0.6,el;q=0.5',
         ],
-        'get' => [
-            'name' => 'Johnny Appleseed',
+        'request' => [
+            'name' => 'Jon Appleseed',
             'age' => 26,
         ],
-        'cookie' => [
-            'name' => 'Johnny Appleseed',
+        'cookies' => [
+            'name' => 'James Appleseed',
             'age' => 28,
         ],
-        'valid input keys' => ['post', 'get', 'files', 'cookie', 'request', 'server', 'body'],
-        'replaceable input keys' => ['post', 'get', 'files', 'cookie', 'request', 'server', 'body', 'php_sapi', 'stdin'],
 
         // looks like a apache server request
         'php_sapi' => 'APACHE',
@@ -41,20 +42,17 @@ final class InputTest extends unitTestHelper
     }
 
     // Tests
-    public function testRawGet(): void
+    public function testGetUrl(): void
     {
-        $this->assertEquals('', $this->instance->rawGet());
-    }
-
-    public function testRawBody(): void
-    {
-        $this->assertEquals('name=Johnny%20Appleseed&age=25', $this->instance->rawBody());
-    }
-
-    public function testHas(): void
-    {
-        $this->assertTrue($this->instance->has('post'));
-        $this->assertFalse($this->instance->has('foo'));
+        $this->assertEquals('/product/123abc', $this->instance->GetUrl());
+        $this->assertEquals('/product/123abc', $this->instance->GetUrl(Input::SCHEME));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::HOST));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::PORT));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::USER));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::PASS));
+        $this->assertEquals('/product/123abc', $this->instance->GetUrl(Input::PATH));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::QUERY));
+        $this->assertEquals(null, $this->instance->GetUrl(Input::FRAGMENT));
     }
 
     public function testRequestUri(): void
@@ -64,11 +62,15 @@ final class InputTest extends unitTestHelper
 
     public function testUriSegment(): void
     {
+        $this->assertEquals('', $this->instance->uriSegment(0));
         $this->assertEquals('product', $this->instance->uriSegment(1));
         $this->assertEquals('123abc', $this->instance->uriSegment(2));
         $this->assertEquals('', $this->instance->uriSegment(3));
-        $this->assertEquals('', $this->instance->uriSegment(0));
-        $this->assertEquals('', $this->instance->uriSegment(-1));
+    }
+
+    public function testContentType(): void
+    {
+        $this->assertEquals('', $this->instance->contentType());
     }
 
     public function testRequestMethod(): void
@@ -78,131 +80,77 @@ final class InputTest extends unitTestHelper
 
     public function testRequestType(): void
     {
-        // because of config sent in
         $this->assertEquals('ajax', $this->instance->requestType());
     }
 
     public function testIsAjaxRequest(): void
     {
-        $this->assertTrue($this->instance->isAjaxRequest());
+        $this->assertEquals(true, $this->instance->isAjaxRequest());
     }
 
     public function testIsCliRequest(): void
     {
-        // because of config sent in
-        $this->assertFalse($this->instance->isCliRequest());
+        $this->assertEquals(false, $this->instance->isCliRequest());
     }
 
     public function testIsHttpsRequest(): void
     {
-        $this->assertTrue($this->instance->isHttpsRequest());
+        $this->assertEquals(true, $this->instance->isHttpsRequest());
+        $this->assertEquals('https', $this->instance->isHttpsRequest(true));
     }
 
-    public function testBody(): void
+    public function testRequest(): void
     {
         $this->assertEquals([
-            'name' => 'Johnny Appleseed',
-            'age' => 25,
-        ], $this->instance->body());
-    }
-
-    public function testPost(): void
-    {
-        $this->assertEquals([
-            'name' => 'Johnny Appleseed',
-            'age' => 25,
-        ], $this->instance->body());
-    }
-
-    public function testGet(): void
-    {
-        $this->assertEquals([
-            'name' => 'Johnny Appleseed',
+            'name' => 'Jon Appleseed',
             'age' => 26,
-        ], $this->instance->get());
+        ], $this->instance->request());
     }
 
-    public function testServer(): void
+    public function testQuery(): void
     {
         $this->assertEquals([
-            'request_uri' => '/product/123abc',
-            'request_method' => 'get',
-            'http_x_requested_with' => 'xmlhttprequest',
-            'http_accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'https' => 'on',
-            'http_accept_language' => 'en-US,en;q=0.9',
-        ], $this->instance->server());
-    }
-
-    public function testFiles(): void
-    {
-        $this->assertEquals([], $this->instance->files());
+            'name' => 'Jenny Appleseed',
+            'age' => 25,
+        ], $this->instance->query());
     }
 
     public function testCookie(): void
     {
         $this->assertEquals([
-            'name' => 'Johnny Appleseed',
+            'name' => 'James Appleseed',
             'age' => 28,
-        ], $this->instance->Cookie());
+        ], $this->instance->cookie());
     }
 
-    public function testCopy(): void
+    public function testServer(): void
     {
+        $this->assertEquals('get', $this->instance->server('request_method'));
+        $this->assertEquals('en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,fr;q=0.6,el;q=0.5', $this->instance->server('HTTP_ACCEPT_LANGUAGE'));
+    }
+
+    public function testHeader(): void
+    {
+        $this->assertEquals('en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7,fr;q=0.6,el;q=0.5', $this->instance->header('HTTP_ACCEPT_LANGUAGE'));
+    }
+
+    public function testFile(): void
+    {
+        $this->assertEquals([], $this->instance->file(0));
+    }
+
+    public function testJsonRequest(): void
+    {
+        Input::destroyInstance();
+
+        $instance = Input::getInstance([
+            'inputStream' => '{"name": "Joe","age": 24}',
+            'server' => ['content type' => 'application/json', 'request_method' => 'POST'],
+        ]);
+
         $this->assertEquals([
-            'body' => 'name=Johnny%20Appleseed&age=25',
-            'files' => [],
-            'server' => [
-                'request_uri' => '/product/123abc',
-                'request_method' => 'get',
-                'http_x_requested_with' => 'xmlhttprequest',
-                'http_accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-                'https' => 'on',
-                'http_accept_language' => 'en-US,en;q=0.9',
-            ],
-            'get' => [
-                'name' => 'Johnny Appleseed',
-                'age' => 26,
-            ],
-            'cookie' => [
-                'name' => 'Johnny Appleseed',
-                'age' => 28,
-            ],
-            'post' => [],
-            'request' => [],
-        ], $this->instance->copy());
-    }
-
-    public function testReplace(): void
-    {
-        $replace = [
-            'get' => [],
-            'body' => '',
-            'files' => [],
-            'server' => [],
-            'cookie' => [],
-            'post' => [],
-            'request' => [],
-        ];
-
-        $this->instance->replace($replace);
-
-        $this->assertEquals($replace, $this->instance->copy());
-    }
-
-    public function testReplace2(): void
-    {
-        $replace = [
-            'GET' => [],
-            'body' => '',
-            'files' => [],
-            'server' => [],
-            'catdog' => [],
-            'barfoo' => [],
-            'foobar' => [],
-        ];
-
-        $this->expectException(InvalidValue::class);
-        $this->assertNull($this->instance->replace($replace));
+            'name' => 'Joe',
+            'age' => 24,
+        ], $instance->request());
     }
 }

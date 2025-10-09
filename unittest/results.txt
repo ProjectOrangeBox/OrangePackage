@@ -17,12 +17,6 @@ Container
  [x] Remove
  [x] Service not found exception
 
-Cookie
- [x] Set
- [x] Get
- [x] Has
- [x] Remove
-
 Data
  [x] Data
  [x] Merge
@@ -65,25 +59,22 @@ Helpers
  [x] Config
 
 Input
- [x] Raw get
- [x] Raw body
- [x] Has
+ [x] Get url
  [x] Request uri
  [x] Uri segment
+ [x] Content type
  [x] Request method
  [x] Request type
  [x] Is ajax request
  [x] Is cli request
  [x] Is https request
- [x] Body
- [x] Post
- [x] Get
- [x] Server
- [x] Files
+ [x] Request
+ [x] Query
  [x] Cookie
- [x] Copy
- [x] Replace
- [x] Replace 2
+ [x] Server
+ [x] Header
+ [x] File
+ [x] Json request
 
 Log
  [x] Change threshold

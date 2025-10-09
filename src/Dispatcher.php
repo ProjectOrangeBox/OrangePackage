@@ -91,7 +91,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
     protected function __construct(ContainerInterface $container)
     {
         logMsg('INFO', __METHOD__);
-
+        // store the container
         $this->container = $container;
     }
 
@@ -120,14 +120,17 @@ class Dispatcher extends Singleton implements DispatcherInterface
         logMsg('INFO', __METHOD__ . ' controller ' . ($routeMatched['callback'][self::CONTROLLER] ?? ''));
         logMsg('INFO', __METHOD__ . ' method ' . ($routeMatched['callback'][self::METHOD] ?? ''));
 
-        // get the controller & method from the route matched
+        // get the controller from the route matched
         $controllerClass = $routeMatched['callback'][self::CONTROLLER];
+        // get the method from the route matched
         $method = $routeMatched['callback'][self::METHOD];
 
         // get arguments
         $matches = [];
 
+        // decode each argument
         foreach ($routeMatched['argv'] as $value) {
+            // decode the value and add it to the matches array
             $matches[] = urldecode($value);
         }
 
@@ -142,20 +145,18 @@ class Dispatcher extends Singleton implements DispatcherInterface
         }
 
         // ok now instantiate the class and call the method
-        $output = (new $controllerClass(
-            $this->container->get('config'),
-            $this->container->get('input'),
-            $this->container->get('output')
-        ))->$method(...$matches);
+        $output = (new $controllerClass($this->container->config, $this->container->input, $this->container->output))->$method(...$matches);
 
         // if they didn't return anything set output to an empty string
-        if ($output === null) {
-            $output = '';
-        } elseif (!is_string($output)) {
+        $output = $output ?? '';
+        
+        // make sure they returned a string
+        if (!is_string($output)) {
             // they returned something other than a string which is what the method and the output service expects so throw an error
             throw new InvalidValue('Controller "' . $controllerClass . '" method "' . $method . '" did not return a string.');
         }
 
+        // return the output
         return $output;
     }
 }

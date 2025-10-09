@@ -14,7 +14,7 @@ return [
     'files' => Application::fromGlobals('files'),
     'cookie' => Application::fromGlobals('cookie'),
 
-    'input' => file_get_contents('php://input'),
+    'inputStream' => file_get_contents('php://input'),
 
     // for cli detection
     // override in your config if needed

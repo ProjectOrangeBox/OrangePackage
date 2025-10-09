@@ -37,10 +37,10 @@ interface InputInterface
     public function isCliRequest(): bool;
     public function isHttpsRequest(bool $asString = false): bool|string;
 
-    public function request(string $key, mixed $default = null): mixed;
-    public function query(string $key, mixed $default = null): mixed;
-    public function server(string $key, mixed $default = null): mixed;
-    public function header(string $key, mixed $default = null): mixed;
-    public function cookie(string $key, mixed $default = null): mixed;
-    public function file(string $key, mixed $default = null): mixed;
+    public function request(?string $key = null, mixed $default = null): mixed;
+    public function query(?string $key = null, mixed $default = null): mixed;
+    public function server(?string $key = null, mixed $default = null): mixed;
+    public function header(?string $key = null, mixed $default = null): mixed;
+    public function cookie(?string $key = null, mixed $default = null): mixed;
+    public function file(null|int|string $key = null, mixed $default = null): mixed;
 }

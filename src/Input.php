@@ -8,18 +8,103 @@ use orange\framework\base\Singleton;
 use orange\framework\interfaces\InputInterface;
 use orange\framework\traits\ConfigurationTrait;
 
+/**
+ * Class Input
+ *
+ * Handles centralized access to all request-related data in a normalized and structured way.
+ * Supports GET, POST, PUT, DELETE, JSON input, CLI detection, headers, cookies, and files.
+ * Implements Singleton pattern and allows configuration injection.
+ *
+ * 1. Core Purpose:
+ * - Unified API for accessing request data across different sources and methods.
+ * - Supports method overrides and JSON/form-encoded body parsing.
+ * - Identifies request type (AJAX, CLI, HTTPS) and normalizes server data.
+ *
+ * 2. Key Properties:
+ * - @property array $query        Parsed query string ($_GET)
+ * - @property array $request      Parsed request body ($_POST, JSON, etc.)
+ * - @property array $server       Normalized $_SERVER values
+ * - @property array $cookies      Parsed cookies ($_COOKIE)
+ * - @property array $files        Uploaded files ($_FILES)
+ * - @property array $headers      Extracted HTTP headers
+ * - @property-read string $inputStream Raw body input stream
+ *
+ * 3. Important Methods:
+ * - request(?string $key = null, mixed $default = null): mixed
+ *     Get data from POST/PUT/JSON body.
+ *
+ * - query(?string $key = null, mixed $default = null): mixed
+ *     Get data from query string.
+ *
+ * - cookie(?string $key = null, mixed $default = null): mixed
+ *     Get cookie value.
+ *
+ * - file(null|int|string $key = null, mixed $default = []): mixed
+ *     Get uploaded file metadata.
+ *
+ * - server(?string $key = null, mixed $default = null): mixed
+ *     Get normalized server variable.
+ *
+ * - header(?string $key = null, mixed $default = null): mixed
+ *     Get HTTP header value.
+ *
+ * - getUrl(?int $component = null): mixed
+ *     Get full or component of the request URL.
+ *
+ * - requestUri(): string
+ *     Get URI path.
+ *
+ * - uriSegment(int $segmentNumber): string
+ *     Get URI segment by index (1-based).
+ *
+ * - contentType(bool $asLowercase = true): string
+ *     Get request content type.
+ *
+ * - requestMethod(bool $asLowercase = true): string
+ *     Get HTTP method, supports `_method` override.
+ *
+ * - requestType(bool $asLowercase = true): string
+ *     Detect request type: html, ajax, cli.
+ *
+ * - isAjaxRequest(): bool
+ *     Check if request was made via AJAX.
+ *
+ * - isCliRequest(): bool
+ *     Check if request was made via CLI.
+ *
+ * - isHttpsRequest(bool $asString = false): bool|string
+ *     Check if request is over HTTPS or return "https"/"http".
+ *
+ * 4. Configuration & Setup:
+ * - Constructor expects a config array with optional keys:
+ *   - query, request, server, cookies, files, inputStream, php_sapi, stdin
+ * - Merges config using ConfigurationTrait's `mergeConfigWith()` method.
+ *
+ * 5. Error Handling:
+ * - Uses safe access (`??`) to avoid undefined index errors.
+ * - Gracefully falls back to defaults when data is missing.
+ * - Applies fallback method resolution if HTTP method override is missing.
+ *
+ * 6. Big Picture:
+ * - Simplifies interaction with superglobals and raw input.
+ * - Enhances testability by injecting custom data via config.
+ * - Helps enforce a consistent and test-friendly way of handling input data.
+ * - Acts as a bridge between raw HTTP layer and application logic.
+ */
 class Input extends Singleton implements InputInterface
 {
     /** include ConfigurationTrait methods */
     use ConfigurationTrait;
 
-    protected array $query = [];
-    protected array $request = [];
-    protected array $server = [];
-    protected array $cookies = [];
-    protected array $files = [];
-    protected array $headers = [];
-    protected string $input;
+    protected array $query;
+    protected array $request;
+    protected array $server;
+    protected array $cookies;
+    protected array $files;
+    protected array $headers;
+
+    // input stream
+    public readonly string $inputStream;
 
     /**
      * Protected constructor to enforce the singleton pattern.
@@ -32,61 +117,147 @@ class Input extends Singleton implements InputInterface
 
         $this->config = $this->mergeConfigWith($config, false);
 
-        $this->query = $this->config['get'] ?? [];
-        $this->request = $this->config['post'] ?? [];
+        $this->query = $this->config['query'] ?? [];
+        $this->request = $this->config['request'] ?? [];
         $this->cookies = $this->config['cookies'] ?? [];
         $this->files = $this->config['files'] ?? [];
-        $this->input = $this->config['input'] ?? '';
+        $this->inputStream = $this->config['inputStream'] ?? '';
 
-        $this->setServer($this->config['server'] ?? []);
-        $this->convertContent();
+        $this->buildServer($this->config['server'] ?? []);
+        $this->detectInputStream();
     }
 
-    public function request(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve data from the request (POST/PUT/PATCH) body.
+     *
+     * @param string|null $key Specific key to fetch; when null, returns the full dataset.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function request(?string $key = null, mixed $default = null): mixed
     {
-        return $this->request[$key] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        return $this->extract($this->request, $key, $default);
     }
 
-    public function query(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve data from the query string parameters.
+     *
+     * @param string|null $key Specific key to fetch; when null, returns the full dataset.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function query(?string $key = null, mixed $default = null): mixed
     {
-        return $this->query[$key] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        return $this->extract($this->query, $key, $default);
     }
 
-    public function server(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve data from the incoming cookies.
+     *
+     * @param string|null $key Specific key to fetch; when null, returns the full dataset.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function cookie(?string $key = null, mixed $default = null): mixed
     {
-        return $this->server[$this->normalizeServerKey($key)] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        return $this->extract($this->cookies, $key, $default);
     }
 
-    public function header(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve uploaded file metadata.
+     *
+     * @param int|string|null $key Specific entry to fetch; accepts nested indexes.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function file(null|int|string $key = null, mixed $default = []): mixed
     {
-        return $this->headers[$this->normalizeServerKey($key)] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        return $this->extract($this->files, $key, $default);
     }
 
-    public function cookie(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve values from server parameters with normalized keys.
+     *
+     * @param string|null $key Specific key to fetch; when null, returns the full dataset.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function server(?string $key = null, mixed $default = null): mixed
     {
-        return $this->cookies[$key] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        $key = $key === null ? null : $this->normalizeServerKey($key);
+
+        return $this->extract($this->server, $key, $default);
     }
 
-    public function file(string $key, mixed $default = null): mixed
+    /**
+     * Retrieve HTTP headers derived from server parameters.
+     *
+     * @param string|null $key Specific key to fetch; when null, returns the full dataset.
+     * @param mixed $default Fallback value when the key is absent.
+     *
+     * @return mixed
+     */
+    public function header(?string $key = null, mixed $default = null): mixed
     {
-        return $this->files[$key] ?? $default;
+        logMsg('INFO', __METHOD__ . ' ' . $key);
+
+        $key = $key === null ? null : $this->normalizeServerKey($key);
+
+        return $this->extract($this->headers, $key, $default);
     }
 
-    public function getUrl(int $component = -1): int|string|array|null|false
+    /**
+     * Resolve the requested URL or a specific component of it.
+     *
+     * @param int|null $component Optional parse_url component to return.
+     *
+     * @return mixed
+     */
+    public function getUrl(?int $component = null): mixed
     {
         logMsg('INFO', __METHOD__ . ' ' . $component);
 
-        return parse_url($this->server('request_uri', ''), $component);
+        $parseUrl = $this->server('request_uri', '');
+
+        return $component == null ? $parseUrl : parse_url($parseUrl, $component);
     }
 
+    /**
+     * Retrieve the current request URI path component.
+     *
+     * @return string
+     */
     public function requestUri(): string
     {
         $uri = parse_url($this->server('request_uri', ''), self::PATH);
+
         logMsg('INFO', __METHOD__ . ' ' . $uri);
 
         return $uri;
     }
 
+    /**
+     * Retrieve a single segment of the current request URI.
+     *
+     * @param int $segmentNumber One-based segment index.
+     *
+     * @return string
+     */
     public function uriSegment(int $segmentNumber): string
     {
         logMsg('INFO', __METHOD__ . ' ' . $segmentNumber);
@@ -96,6 +267,13 @@ class Input extends Singleton implements InputInterface
         return $segs[$segmentNumber - 1] ?? '';
     }
 
+    /**
+     * Retrieve the request content type with configurable casing.
+     *
+     * @param bool $asLowercase True to return lowercase; false returns uppercase.
+     *
+     * @return string
+     */
     public function contentType(bool $asLowercase = true): string
     {
         $type = $this->server('content type', '');
@@ -105,6 +283,13 @@ class Input extends Singleton implements InputInterface
         return $asLowercase ? strtolower($type) : strtoupper($type);
     }
 
+    /**
+     * Determine the effective HTTP method, honoring override conventions.
+     *
+     * @param bool $asLowercase True to return lowercase; false returns uppercase.
+     *
+     * @return string
+     */
     public function requestMethod(bool $asLowercase = true): string
     {
         /**
@@ -130,6 +315,13 @@ class Input extends Singleton implements InputInterface
         return $asLowercase ? strtolower($method) : strtoupper($method);
     }
 
+    /**
+     * Detect the request type (HTML, AJAX, CLI) based on headers and environment.
+     *
+     * @param bool $asLowercase True to return lowercase; false returns uppercase.
+     *
+     * @return string
+     */
     public function requestType(bool $asLowercase = true): string
     {
         // default to html unless we find something else
@@ -146,16 +338,33 @@ class Input extends Singleton implements InputInterface
         return $asLowercase ? strtolower($requestType) : strtoupper($requestType);
     }
 
+    /**
+     * Determine whether the request originated from an AJAX call.
+     *
+     * @return bool
+     */
     public function isAjaxRequest(): bool
     {
-        return $this->requestType() == 'AJAX';
+        return $this->requestType() == 'ajax';
     }
 
+    /**
+     * Determine whether the request originated from the command line.
+     *
+     * @return bool
+     */
     public function isCliRequest(): bool
     {
-        return $this->requestType() == 'CLI';
+        return $this->requestType() == 'cli';
     }
 
+    /**
+     * Determine whether the request is served over HTTPS.
+     *
+     * @param bool $asString True to return "https" or "http" instead of a boolean.
+     *
+     * @return bool|string
+     */
     public function isHttpsRequest(bool $asString = false): bool|string
     {
         logMsg('INFO', __METHOD__ . ' ' . $asString);
@@ -178,7 +387,7 @@ class Input extends Singleton implements InputInterface
         return $return;
     }
 
-    protected function setServer(array $server): void
+    protected function buildServer(array $server): void
     {
         foreach ($server as $key => $value) {
             $normalizedKey = $this->normalizeServerKey($key);
@@ -197,17 +406,23 @@ class Input extends Singleton implements InputInterface
         return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
     }
 
-    protected function convertContent(): void
+    protected function detectInputStream(): void
     {
         $contentType = $this->contentType();
         $requestMethod = $this->requestMethod();
 
-        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete'])) {
-            parse_str($this->input, $data);
+        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete']) && is_string($this->inputStream)) {
+            parse_str($this->inputStream, $data);
             $this->request = $data;
-        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete'])) {
-            $data = json_decode($this->input, true);
-            $this->request = $data;
+        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete']) && is_string($this->inputStream)) {
+            if (is_array($data = json_decode($this->inputStream, true))) {
+                $this->request = $data;
+            }
         }
+    }
+
+    protected function extract(array $array, mixed $key, mixed $default = null): mixed
+    {
+        return $key === null ? $array : ($array[$key] ?? $default);
     }
 }
