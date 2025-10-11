@@ -145,7 +145,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
         }
 
         // ok now instantiate the class and call the method
-        $output = (new $controllerClass($this->container->config, $this->container->input, $this->container->output))->$method(...$matches);
+        $output = (new $controllerClass($this->container->get('config'), $this->container->get('input'), $this->container->get('output')))->$method(...$matches);
 
         // if they didn't return anything set output to an empty string
         $output = $output ?? '';
