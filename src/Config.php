@@ -100,7 +100,15 @@ class Config extends SingletonArrayObject implements ConfigInterface
      * Array of directories to search for configuration files, in order of priority.
      */
     protected array $searchDirectories = [];
-
+    
+    /*
+     * Map of config file names to their discovered file paths across directories.
+     * Example:
+     * [
+     *   'database' => ['/path/to/config/database.php', '/path/to/env/database.php'],
+     *   'app' => ['/path/to/config/app.php']
+     * ]
+     */
     protected array $foundConfigFiles = [];
 
     /**

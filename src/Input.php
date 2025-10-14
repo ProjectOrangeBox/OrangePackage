@@ -11,9 +11,13 @@ use orange\framework\traits\ConfigurationTrait;
 /**
  * Class Input
  *
- * Handles centralized access to all request-related data in a normalized and structured way.
- * Supports GET, POST, PUT, DELETE, JSON input, CLI detection, headers, cookies, and files.
- * Implements Singleton pattern and allows configuration injection.
+ * Centralizes access to request state by wrapping superglobals and injected config inside a singleton Input service; the constructor merges supplied config, stores query/body/cookie/file data, normalizes server values, and records the raw input stream.
+ * Utility accessors (request, query, cookie, file) pull values via a shared extract helper while logging calls, giving callers filtered slices or the whole dataset without touching superglobals directly.
+ * Server and header lookups normalize keys (lowercase, underscores to spaces, HTTP/Server prefixes stripped) so the rest of the class can query consistent identifiers.
+ * URL helpers surface the request URI and individual segments, backed by the normalized server data (packages/orange/src/Input.php:231, packages/orange/src/Input.php:261).
+ * Methods such as contentType, requestMethod, and requestType interpret headers and overrides to expose the effective content type, HTTP verb (including _method overrides), and whether the call is HTML/AJAX/CLI.
+ * Boolean helpers report on AJAX, CLI, and HTTPS status, including the ability to return scheme strings when requested.
+ * detectInputStream parses the raw body for URL-encoded or JSON payloads on non-POST verbs so the $request array stays populated even when PHP would normally leave it empty.
  *
  * 1. Core Purpose:
  * - Unified API for accessing request data across different sources and methods.
@@ -387,6 +391,13 @@ class Input extends Singleton implements InputInterface
         return $return;
     }
 
+    /**
+     * Normalize and store server parameters, extracting HTTP headers.
+     *
+     * @param array $server Raw server parameters.
+     *
+     * @return void
+     */
     protected function buildServer(array $server): void
     {
         foreach ($server as $key => $value) {
@@ -401,11 +412,24 @@ class Input extends Singleton implements InputInterface
         }
     }
 
+    /**
+     * Normalize server keys by lowercasing, replacing underscores with spaces, and stripping HTTP/Server prefixes.
+     *
+     * @param string $key
+     * @return string
+     */
     protected function normalizeServerKey(string $key): string
     {
         return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
     }
 
+    /**
+     * Parse input stream for PUT/DELETE with urlencoded or JSON bodies
+     * populates $this->request accordingly
+     * called from constructor
+     *
+     * @return void
+     */
     protected function detectInputStream(): void
     {
         $contentType = $this->contentType();
@@ -420,6 +444,17 @@ class Input extends Singleton implements InputInterface
             }
         }
     }
+
+    /**
+     * helper to extract a value from an array or return the whole array
+     * if the key is null; returns default if the key is not found
+     * used by request(), query(), cookie(), file(), server(), header()
+     *
+     * @param array $array
+     * @param mixed $key
+     * @param mixed|null $default
+     * @return mixed
+     */
 
     protected function extract(array $array, mixed $key, mixed $default = null): mixed
     {
