@@ -104,9 +104,9 @@ class Input extends Singleton implements InputInterface
     // individual storage for each of the input variables
     protected array $query;
     protected array $request;
-    protected array $server;
     protected array $cookies;
     protected array $files;
+    protected array $server;
     protected array $headers;
 
     // input stream
@@ -332,13 +332,13 @@ class Input extends Singleton implements InputInterface
      */
     public function requestType(bool $asLowercase = true): string
     {
-        // default to html unless we find something else
-        $requestType = 'html';
-
+        // determine the request type
         if (($this->server('http_x_requested_with', '') == 'xmlhttprequest') || (strpos($this->server('http_accept', ''), 'application/json') !== false)) {
             $requestType = 'ajax';
         } elseif (strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
             $requestType = 'cli';
+        } else {
+            $requestType = 'html';
         }
 
         logMsg('DEBUG', __METHOD__ . $requestType);
@@ -404,21 +404,21 @@ class Input extends Singleton implements InputInterface
      */
     protected function buildServer(array $input): array
     {
-        $server = [];
-        $headers = [];
+        $serverAry = [];
+        $headersAry = [];
 
         foreach ($input as $key => $value) {
             $normalizedKey = $this->normalizeServerKey($key);
 
-            $server[$normalizedKey] = $value;
+            $serverAry[$normalizedKey] = $value;
 
             // CONTENT_* are not prefixed with HTTP_
             if (strpos($key, 'HTTP_') === 0 || in_array($key, ['CONTENT_LENGTH', 'CONTENT_MD5', 'CONTENT_TYPE'])) {
-                $headers[$normalizedKey] = $value;
+                $headersAry[$normalizedKey] = $value;
             }
         }
 
-        return [$server, $headers];
+        return [$serverAry, $headersAry];
     }
 
     /**
@@ -451,6 +451,9 @@ class Input extends Singleton implements InputInterface
             if (is_array($data = json_decode($this->inputStream, true))) {
                 $this->request = $data;
             }
+        } else {
+            // leave request as-is
+            $this->request = [];
         }
     }
 

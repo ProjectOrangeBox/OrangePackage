@@ -282,16 +282,16 @@ class Error extends Singleton
     {
         logMsg('INFO', __METHOD__);
 
-        $code = 500;
-
         if (isset($this->httpCode) && $this->httpCode > 0) {
-            $code = (int)$this->httpCode;
+            $responseCode = (int)$this->httpCode;
         } elseif (isset($this->code) && $this->code > 0) {
-            $code = (int)$this->code;
+            $responseCode = (int)$this->code;
+        } else {
+            $responseCode = 500;
         }
 
         if ($this->requestType != 'cli') {
-            $this->output->responseCode($code);
+            $this->output->responseCode($responseCode);
         }
     }
 
@@ -343,11 +343,11 @@ class Error extends Singleton
         logMsg('INFO', __METHOD__ . ' ' . $code . ' ' . $httpCode);
 
         // use the code as the view we are looking for
-        $view = ($httpCode != 0) ? (string)$httpCode : (string)$code;
+        $viewName = ($httpCode != 0) ? (string)$httpCode : (string)$code;
 
-        $viewFile = $this->findView($view);
+        $foundViewFile = $this->findView($viewName);
 
-        return !empty($viewFile) ? $this->view->render($viewFile) : $this->viewRaw();
+        return !empty($foundViewFile) ? $this->view->render($foundViewFile) : $this->viewRaw();
     }
 
     /**
@@ -438,48 +438,57 @@ class Error extends Singleton
     {
         logMsg('INFO', __METHOD__);
 
-        $output = '';
+        // default output
+        $finalOutput = '';
 
         // cast to array
-        $data = (array)$this->data;
+        $finalData = (array)$this->data;
 
         // fall back to hard coded response format
         switch ($this->requestType) {
             case 'json':
-                $output = json_encode($data, JSON_PRETTY_PRINT);
+                $finalOutput = json_encode($finalData, JSON_PRETTY_PRINT);
                 break;
             case 'html':
-                $output .= '<pre>';
-
-                if (isset($data['code'])) {
-                    $output .= $data['code'] . PHP_EOL;
-                }
-
-                if (isset($data['message'])) {
-                    $output .= $data['message'] . PHP_EOL;
-                }
-
-                if (isset($data['file'])) {
-                    $output .= 'File: ' . $data['file'] . PHP_EOL;
-                }
-
-                if (isset($data['line'])) {
-                    $output .= 'Line: ' . $data['line'] . PHP_EOL;
-                }
-
-                if (isset($data['options'])) {
-                    $output .= print_r($data['options'], true) . PHP_EOL;
-                }
-
-                $output .= '</pre>';
-
+                $finalOutput = $this->viewRawBuildHtml($finalOutput, $finalData);
                 break;
             case 'cli':
             default:
-                $output = print_r($data, true) . PHP_EOL;
+                $finalOutput = print_r($finalData, true) . PHP_EOL;
                 break;
         }
 
-        return $output;
+        return $finalOutput;
+    }
+
+    protected function viewRawBuildHtml(string $finalOutput, array $finalData): string
+    {
+        logMsg('INFO', __METHOD__);
+
+        $finalOutput .= '<pre>';
+
+        if (isset($finalData['code'])) {
+            $finalOutput .= $finalData['code'] . PHP_EOL;
+        }
+
+        if (isset($finalData['message'])) {
+            $finalOutput .= $finalData['message'] . PHP_EOL;
+        }
+
+        if (isset($finalData['file'])) {
+            $finalOutput .= 'File: ' . $finalData['file'] . PHP_EOL;
+        }
+
+        if (isset($finalData['line'])) {
+            $finalOutput .= 'Line: ' . $finalData['line'] . PHP_EOL;
+        }
+
+        if (isset($finalData['options'])) {
+            $finalOutput .= print_r($finalData['options'], true) . PHP_EOL;
+        }
+
+        $finalOutput .= '</pre>';
+
+        return $finalOutput;
     }
 }

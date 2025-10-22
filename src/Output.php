@@ -284,20 +284,20 @@ class Output extends Singleton implements OutputInterface
 
         // if they send in the shorthand content type convert it to a proper content type
         if (isset($this->mimes[$type])) {
-            $contentType = $this->mimes[$type];
+            $detectedContentType = $this->mimes[$type];
         } elseif (isset($this->mimes[$fallback])) {
-            $contentType = $this->mimes[$fallback];
+            $detectedContentType = $this->mimes[$fallback];
         } elseif (in_array($type, $this->mimes)) {
-            $contentType = $type;
+            $detectedContentType = $type;
         } elseif (in_array($fallback, $this->mimes)) {
-            $contentType = $fallback;
+            $detectedContentType = $fallback;
         } else {
             throw new OutputException('Unknown contentType(s) ' . $type . '/' . ($fallback ?? ''));
         }
 
-        logMsg('INFO', __METHOD__ . ' ' . $contentType);
+        logMsg('INFO', __METHOD__ . ' ' . $detectedContentType);
 
-        $this->contentType = $contentType;
+        $this->contentType = $detectedContentType;
         $this->header($this->getContentTypeHeader($this->contentType, $this->charSet), self::REPLACEALL);
 
         return $this;
@@ -392,11 +392,7 @@ class Output extends Singleton implements OutputInterface
     {
         logMsg('DEBUG', __METHOD__);
 
-        $headers = array_values($this->headers);
-
-        logMsg('INFO', '', $headers);
-
-        return $headers;
+        return array_values($this->headers);
     }
 
     /**

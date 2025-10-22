@@ -263,14 +263,16 @@ class Application
         $helpers = static::$config['helpers'] ?? [];
         // include the orange required helpers
         $helpers = $helpers + (static::$config['required helpers'] ?? []);
-
+        // now include each helper file
         foreach ($helpers as $helperFile) {
-            // ensure the helper file exists
-            if (!$helperFileRP = realpath($helperFile)) {
+            // get the real path of the helper file
+            $helperFileRealPath = realpath($helperFile);
+            // if the file doesn't exist
+            if (!$helperFileRealPath) {
                 throw new FileNotFound($helperFile);
             }
             // include the helper file
-            include $helperFileRP;
+            include $helperFileRealPath;
         }
 
         // now errorHandler() & errorHandler() should be setup
@@ -401,15 +403,18 @@ class Application
 
             // Use the .env file(s) they provided as arguments
             foreach (func_get_args() as $environmentalFile) {
-                if (!$environmentalFileRP = realpath($environmentalFile)) {
+                // get the real path of the environmental file
+                $environmentalFileRealPath = realpath($environmentalFile);
+                // if the file doesn't exist
+                if (!$environmentalFileRealPath) {
                     throw new FileNotFound($environmentalFile);
                 }
 
                 // parse the ini file and merge it into the env array
-                $iniArray = parse_ini_file($environmentalFileRP, true, INI_SCANNER_TYPED);
+                $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
                 // make sure we got an array back
                 if (!is_array($iniArray)) {
-                    throw new InvalidConfigurationValue($environmentalFileRP . ' Invalid INI file format or empty file.');
+                    throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
                 }
                 // merge the new values in - recursive to handle sections
                 static::$env = array_replace_recursive(static::$env, $iniArray);
@@ -496,12 +501,12 @@ class Application
         // Iterate through the directories
         foreach ($files as $file) {
             // Check if the config file exists
-            if ($fileRP = realpath($file)) {
+            if ($fileRealPath = realpath($file)) {
                 // Include the config file
-                $includedConfig = include $fileRP;
+                $includedConfig = include $fileRealPath;
                 // Check if the included config is an array
                 if (!is_array($includedConfig)) {
-                    throw new ConfigFileDidNotReturnAnArray($fileRP);
+                    throw new ConfigFileDidNotReturnAnArray($fileRealPath);
                 }
                 // replace the included config with the existing config
                 $config = array_replace($config, $includedConfig);
@@ -557,18 +562,27 @@ class Application
      */
     protected static function append(array &$array, string $value, bool $required): void
     {
-        // does the file exist?
-        if (!$valueRP = realpath($value)) {
+        // get the real path of the value
+        $valueRealPath = realpath($value);
+        // if it doesn't exist and is required then throw an error
+        if (!$valueRealPath) {
             // if the file is required and doesn't exist then throw an error
             if ($required) {
                 throw new FileNotFound($value);
             }
         } else {
             // add the real path to the array
-            $array[$valueRP] = $valueRP;
+            $array[$valueRealPath] = $valueRealPath;
         }
     }
 
+    /**
+     * Get the application config files to load
+     *
+     * @param array $userProvidedApplicationConfigFiles
+     * @return array
+     * @throws FileNotFound
+     */
     protected static function getApplicationConfigFiles(array $userProvidedApplicationConfigFiles): array
     {
         // load environment if it hasn't been already because we need ENVIRONMENT
@@ -596,6 +610,13 @@ class Application
         return $configFiles;
     }
 
+    /**
+     * Setup the configuration directories
+     *
+     * @return void
+     * @throws ConfigFileDidNotReturnAnArray
+     * @throws FileNotFound
+     */
     protected static function setupConfigDirectories(): void
     {
         // did they provide a config directories config setting?

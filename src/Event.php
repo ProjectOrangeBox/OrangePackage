@@ -216,7 +216,8 @@ class Event extends Singleton implements EventInterface
             if (isset($this->events[$trigger])) {
                 foreach ($this->listeners($trigger) as $listener) {
                     if ($listener(...$arguments) === false) {
-                        break; // Stop processing if listener returns false
+                        // Stop processing if listener returns false
+                        break;
                     }
                 }
             }
@@ -284,6 +285,7 @@ class Event extends Singleton implements EventInterface
     {
         logMsg('DEBUG', __METHOD__, ['trigger' => $trigger]);
 
+        // this exits on the first successful removal
         if ($trigger) {
             $trigger = $this->normalize($trigger);
 
