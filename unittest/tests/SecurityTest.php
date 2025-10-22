@@ -71,7 +71,7 @@ final class SecurityTest extends unitTestHelper
             $input .= chr($c);
         }
 
-        $this->assertEquals(' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~', $this->instance->removeInvisibleCharacters($input));
+        $this->assertEquals(' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~', $this->instance->removeInvisibleCharacters($input));
     }
 
     public function testCleanFilename(): void
@@ -82,7 +82,7 @@ final class SecurityTest extends unitTestHelper
             $input .= chr($c);
         }
 
-        $this->assertEquals(' ()+,-.0123456789<=>@ABCDEGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz{|}~', $this->instance->cleanFilename($input));
+        $this->assertEquals(' ()+,-.0123456789<=>@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]_abcdefghijklmnopqrstuvwxyz{|}~', $this->instance->cleanFilename($input));
         $this->assertEquals('This is a test 2004-10-31 103100', $this->instance->cleanFilename('This is a test 2004-10-31 10:31:00'));
         $this->assertEquals('This is a test <2004-10-31 103100>', $this->instance->cleanFilename('This is a test <2004-10-31 10:31:00>'));
     }

@@ -453,7 +453,7 @@ class Input extends Singleton implements InputInterface
             }
         } else {
             // leave request as-is
-            $this->request = [];
+            logMsg('DEBUG', __METHOD__ . ' no input stream parsing needed');
         }
     }
 

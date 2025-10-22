@@ -290,7 +290,7 @@ class Security extends Singleton implements SecurityInterface
     public function removeInvisibleCharacters(string $string): string
     {
         // remove anything not in the displayable range
-        $nonDisplayables = '/[^\x20-\x7F]/';
+        $nonDisplayables = '/[^\x20-\x7E]/';
 
         do {
             // Perform a regular expression search and replace
