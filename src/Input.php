@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace orange\framework;
 
 use orange\framework\base\Singleton;
+use orange\framework\base\ArrayObject;
 use orange\framework\interfaces\InputInterface;
 use orange\framework\traits\ConfigurationTrait;
 
@@ -100,6 +101,7 @@ class Input extends Singleton implements InputInterface
     /** include ConfigurationTrait methods */
     use ConfigurationTrait;
 
+    // individual storage for each of the input variables
     protected array $query;
     protected array $request;
     protected array $server;
@@ -127,7 +129,9 @@ class Input extends Singleton implements InputInterface
         $this->files = $this->config['files'] ?? [];
         $this->inputStream = $this->config['inputStream'] ?? '';
 
-        $this->buildServer($this->config['server'] ?? []);
+        list($this->server, $this->headers) = $this->buildServer($this->config['server'] ?? []);
+
+        // detect the input stream based on the header content type
         $this->detectInputStream();
     }
 
@@ -398,18 +402,23 @@ class Input extends Singleton implements InputInterface
      *
      * @return void
      */
-    protected function buildServer(array $server): void
+    protected function buildServer(array $input): array
     {
-        foreach ($server as $key => $value) {
+        $server = [];
+        $headers = [];
+
+        foreach ($input as $key => $value) {
             $normalizedKey = $this->normalizeServerKey($key);
 
-            $this->server[$normalizedKey] = $value;
+            $server[$normalizedKey] = $value;
 
             // CONTENT_* are not prefixed with HTTP_
             if (strpos($key, 'HTTP_') === 0 || in_array($key, ['CONTENT_LENGTH', 'CONTENT_MD5', 'CONTENT_TYPE'])) {
-                $this->headers[$normalizedKey] = $value;
+                $headers[$normalizedKey] = $value;
             }
         }
+
+        return [$server, $headers];
     }
 
     /**
