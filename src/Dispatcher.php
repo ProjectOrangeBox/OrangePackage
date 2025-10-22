@@ -149,7 +149,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
 
         // if they didn't return anything set output to an empty string
         $output = $output ?? '';
-        
+
         // make sure they returned a string
         if (!is_string($output)) {
             // they returned something other than a string which is what the method and the output service expects so throw an error

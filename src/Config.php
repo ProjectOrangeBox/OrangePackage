@@ -100,7 +100,7 @@ class Config extends SingletonArrayObject implements ConfigInterface
      * Array of directories to search for configuration files, in order of priority.
      */
     protected array $searchDirectories = [];
-    
+
     /*
      * Map of config file names to their discovered file paths across directories.
      * Example:
