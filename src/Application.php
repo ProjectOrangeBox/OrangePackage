@@ -377,6 +377,7 @@ class Application
                 'files' => $_FILES,
                 'php_sapi' => PHP_SAPI, // string
                 'stdin' => defined('STDIN'), // boolean
+                'input' => file_get_contents('php://input'), // string
             ];
         }
 

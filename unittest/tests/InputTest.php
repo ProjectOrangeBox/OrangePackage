@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use orange\framework\Input;
-use orange\framework\exceptions\InvalidValue;
 
 final class InputTest extends unitTestHelper
 {
@@ -144,7 +143,7 @@ final class InputTest extends unitTestHelper
         Input::destroyInstance();
 
         $instance = Input::getInstance([
-            'inputStream' => '{"name": "Joe","age": 24}',
+            'input' => '{"name": "Joe","age": 24}',
             'server' => ['content type' => 'application/json', 'request_method' => 'POST'],
         ]);
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace orange\framework;
 
 use orange\framework\base\Singleton;
-use orange\framework\base\ArrayObject;
 use orange\framework\interfaces\InputInterface;
 use orange\framework\traits\ConfigurationTrait;
 
@@ -102,15 +101,15 @@ class Input extends Singleton implements InputInterface
     use ConfigurationTrait;
 
     // individual storage for each of the input variables
-    protected array $query;
-    protected array $request;
-    protected array $cookies;
-    protected array $files;
-    protected array $server;
-    protected array $headers;
+    protected array $query = [];
+    protected array $request = [];
+    protected array $cookies = [];
+    protected array $files = [];
+    protected array $server = [];
+    protected array $headers = [];
 
     // input stream
-    public readonly string $inputStream;
+    protected string $inputStream = '';
 
     /**
      * Protected constructor to enforce the singleton pattern.
@@ -121,18 +120,22 @@ class Input extends Singleton implements InputInterface
     {
         logMsg('INFO', __METHOD__);
 
+        // merge the supplied config with defaults
         $this->config = $this->mergeConfigWith($config, false);
 
+        // store the various input arrays
         $this->query = $this->config['query'] ?? [];
-        $this->request = $this->config['request'] ?? [];
         $this->cookies = $this->config['cookies'] ?? [];
         $this->files = $this->config['files'] ?? [];
-        $this->inputStream = $this->config['inputStream'] ?? '';
 
-        list($this->server, $this->headers) = $this->buildServer($this->config['server'] ?? []);
+        // build normalized server and headers arrays
+        $this->detectServerHeaders($this->server, $this->headers, $this->config['server'] ?? []);
 
-        // detect the input stream based on the header content type
-        $this->detectInputStream();
+        // save this to provide it as a read only property
+        $this->inputStream = $this->config['input'] ?? '';
+
+        // detect request body data types and populate $this->request
+        $this->detectRequest($this->request, $this->contentType(), $this->requestMethod(), $this->inputStream, $this->config['request'] ?? []);
     }
 
     /**
@@ -163,6 +166,16 @@ class Input extends Singleton implements InputInterface
         logMsg('INFO', __METHOD__ . ' ' . $key);
 
         return $this->extract($this->query, $key, $default);
+    }
+
+    /**
+     * The raw apache input stream
+     *
+     * @return string
+     */
+    public function inputStream(): string
+    {
+        return $this->inputStream;
     }
 
     /**
@@ -402,23 +415,18 @@ class Input extends Singleton implements InputInterface
      *
      * @return void
      */
-    protected function buildServer(array $input): array
+    protected function detectServerHeaders(array &$server, array &$headers, array $input): void
     {
-        $serverAry = [];
-        $headersAry = [];
-
         foreach ($input as $key => $value) {
             $normalizedKey = $this->normalizeServerKey($key);
 
-            $serverAry[$normalizedKey] = $value;
+            $server[$normalizedKey] = $value;
 
             // CONTENT_* are not prefixed with HTTP_
             if (strpos($key, 'HTTP_') === 0 || in_array($key, ['CONTENT_LENGTH', 'CONTENT_MD5', 'CONTENT_TYPE'])) {
-                $headersAry[$normalizedKey] = $value;
+                $headers[$normalizedKey] = $value;
             }
         }
-
-        return [$serverAry, $headersAry];
     }
 
     /**
@@ -437,23 +445,29 @@ class Input extends Singleton implements InputInterface
      * populates $this->request accordingly
      * called from constructor
      *
-     * @return void
+     * @param array $posted
+     * @param string $inputStream
+     * @return array
      */
-    protected function detectInputStream(): void
+    protected function detectRequest(array &$request, string $contentType, string $requestMethod, string $inputStream, array $posted): void
     {
-        $contentType = $this->contentType();
-        $requestMethod = $this->requestMethod();
+        // setup a variable to hold the new request
+        $newRequest = null;
 
-        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete']) && is_string($this->inputStream)) {
-            parse_str($this->inputStream, $data);
-            $this->request = $data;
-        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete']) && is_string($this->inputStream)) {
-            if (is_array($data = json_decode($this->inputStream, true))) {
-                $this->request = $data;
-            }
+        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete'])) {
+            // try to parse the urlencoded input
+            parse_str($inputStream, $newRequest);
+        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete'])) {
+            // try to decode the json input
+            $newRequest = json_decode($inputStream, true);
         } else {
-            // leave request as-is
-            logMsg('DEBUG', __METHOD__ . ' no input stream parsing needed');
+            // fail back to what was posted
+            $newRequest = $posted;
+        }
+
+        // only replace request with newRequest if it is an array
+        if (is_array($newRequest)) {
+            $request = $newRequest;
         }
     }
 
@@ -467,7 +481,6 @@ class Input extends Singleton implements InputInterface
      * @param mixed|null $default
      * @return mixed
      */
-
     protected function extract(array $array, mixed $key, mixed $default = null): mixed
     {
         return $key === null ? $array : ($array[$key] ?? $default);
