@@ -44,7 +44,7 @@ if (!function_exists('config')) {
             if ($filename === null && $key === null && $default === null) {
                 $config = container()->config;
             } else {
-                $config = container()->config->get($filename, $key, $default);
+                $config = container()->config->get($filename . '.' . $key, $default);
             }
         } catch (Throwable $e) {
             // config not setup?

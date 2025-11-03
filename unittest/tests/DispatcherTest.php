@@ -17,7 +17,7 @@ final class DispatcherTest extends unitTestHelper
     protected function setUp(): void
     {
         $container = Container::getInstance([]);
-        $container->set('config', Config::getInstance(['config directory' => WORKINGDIR . '/config']));
+        $container->set('config', Config::getInstance(['config directories' => [WORKINGDIR . '/config']]));
         $container->set('input', Input::getInstance(['server' => $_SERVER]));
         $container->set('output', Output::getInstance([], $container->input));
 

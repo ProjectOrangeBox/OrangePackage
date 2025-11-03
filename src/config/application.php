@@ -7,6 +7,7 @@ return [
     'display_startup_errors' => 0,
     'error_reporting' => 0,
 
+    'config separator' => '.',
     'timezone' => date_default_timezone_get(),
     'encoding' => 'UTF-8',
     'umask' => 0000,

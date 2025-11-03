@@ -52,7 +52,7 @@ return [
     '@response' => 'output',
 
     'container' => fn(array $services): ContainerInterface => Container::getInstance($services),
-    'config' => fn(ContainerInterface $container): ConfigInterface => Config::getInstance($container->get('$application.config directories')),
+    'config' => fn(ContainerInterface $container): ConfigInterface => Config::getInstance($container->get('$application')),
     'log' => fn(ContainerInterface $container): LogInterface => Log::getInstance($container->config->log),
     'events' => fn(ContainerInterface $container): EventInterface => Event::getInstance($container->config->events),
     'input' => fn(ContainerInterface $container): InputInterface => Input::getInstance($container->config->input),

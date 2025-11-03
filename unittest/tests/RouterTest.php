@@ -155,10 +155,8 @@ final class RouterTest extends unitTestHelper
 
     public function testConfigNotFoundException(): void
     {
-        $this->instance->destroyInstance();
-
         $this->expectException(MissingRequired::class);
 
-        Router::getInstance(['site' => null], Input::getInstance([]));
+        Router::newInstance(['site' => null], Input::newInstance([]));
     }
 }

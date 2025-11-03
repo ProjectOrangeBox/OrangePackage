@@ -335,11 +335,8 @@ class Application
      */
     protected static function postContainer(): void
     {
-        // finally put the application config values into the container as $application.KEY
-        foreach (static::$config as $key => $value) {
-            // add to container as $application.KEY
-            static::$container->set('$application.' . $key, $value);
-        }
+        // add to container as $application.KEY
+        static::$container->set('$application', static::$config);
     }
 
     /**

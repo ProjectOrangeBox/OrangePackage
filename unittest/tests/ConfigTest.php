@@ -11,8 +11,11 @@ final class ConfigTest extends unitTestHelper
     protected function setUp(): void
     {
         $this->instance = Config::getInstance([
-            WORKINGDIR . '/config',
-            WORKINGDIR . '/config/testing',
+            'config separator' => '.',
+            'config directories' => [
+                WORKINGDIR . '/config',
+                WORKINGDIR . '/config/testing',
+            ]
         ]);
     }
 
@@ -34,9 +37,9 @@ final class ConfigTest extends unitTestHelper
 
     public function testGetKey(): void
     {
-        $this->assertEquals($this->instance->get('aaa', 'color'), 'blue');
-        $this->assertEquals($this->instance->get('aaa', 'age'), '23');
-        $this->assertEquals($this->instance->get('bbb', 'color'), 'green');
+        $this->assertEquals($this->instance->get('aaa.color'), 'blue');
+        $this->assertEquals($this->instance->get('aaa.age'), '23');
+        $this->assertEquals($this->instance->get('bbb.color'), 'green');
     }
 
     public function testM_M_Get(): void

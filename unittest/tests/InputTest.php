@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use orange\framework\Input;
+use orange\framework\interfaces\InputInterface;
 
 final class InputTest extends unitTestHelper
 {
@@ -140,9 +141,7 @@ final class InputTest extends unitTestHelper
 
     public function testJsonRequest(): void
     {
-        Input::destroyInstance();
-
-        $instance = Input::getInstance([
+        $instance = Input::newInstance([
             'input' => '{"name": "Joe","age": 24}',
             'server' => ['content type' => 'application/json', 'request_method' => 'POST'],
         ]);

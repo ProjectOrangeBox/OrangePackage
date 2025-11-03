@@ -84,10 +84,8 @@ final class LogTest extends unitTestHelper
     {
         $this->expectException(IncorrectInterface::class);
 
-        $this->instance->destroyInstance();
-
         $this->config['handler'] = new stdClass();
 
-        Log::getInstance($this->config);
+        Log::newInstance($this->config);
     }
 }

@@ -85,7 +85,7 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  *  •   Centralized
  *  •   Overridable by environment
  *  •   Efficiently merged and cached
- *  •   Provides flexible access ($config->file, $config['file'], $config->get('file','key')).
+ *  •   Provides flexible access ($config->file, $config['file'], $config->get('file.key')).
  *
  * @package orange\framework
  */
@@ -111,6 +111,8 @@ class Config extends SingletonArrayObject implements ConfigInterface
      */
     protected array $foundConfigFiles = [];
 
+    protected string $separator = '.';
+
     /**
      * Protected constructor to enforce Singleton usage.
      *
@@ -121,7 +123,8 @@ class Config extends SingletonArrayObject implements ConfigInterface
     {
         logMsg('INFO', __METHOD__);
 
-        $this->searchDirectories = $config;
+        $this->searchDirectories = $config['config directories'] ?? [];
+        $this->separator = $config['config separator'] ?? $this->separator;
 
         if ($cacheService) {
             // cache key
@@ -185,9 +188,16 @@ class Config extends SingletonArrayObject implements ConfigInterface
      * @param mixed $defaultValue Default value if the key does not exist.
      * @return mixed Configuration value or default value if key not found.
      */
-    public function get(string $filename, ?string $key = null, mixed $defaultValue = null): mixed
+    public function get(string $filenameKey, mixed $defaultValue = null): mixed
     {
-        logMsg('INFO', __METHOD__ . ' ' . $filename . '.' . ($key ?? '*'));
+        logMsg('INFO', __METHOD__ . ' ' . $filenameKey);
+
+        $filename = $filenameKey;
+        $key = null;
+
+        if (strpos($filenameKey, $this->separator) !== false) {
+            list($filename, $key) = explode($this->separator, $filenameKey, 2);
+        }
 
         // Load the configuration file
         $completeConfig = $this->load($filename);
