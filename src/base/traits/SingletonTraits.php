@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace orange\framework\base;
+namespace orange\framework\base\traits;
 
 use orange\framework\exceptions\container\CannotCloneSingleton;
 use orange\framework\exceptions\container\CannotUnserializeSingleton;
 
-trait SingletonTrait
+trait SingletonTraits
 {
     /**
      * The actual singleton's instance almost always resides inside a static
@@ -16,20 +16,13 @@ trait SingletonTrait
      */
     private static array $instances = [];
 
-    // the default instance config
-    protected array $config = [];
-
     /**
-     * singletons should not have public constructors
+     * The method you use to generate
+     * the Singleton's instance.
      *
-     * @return void
-     */
-    protected function __construct() {
-        // placeholder
-    }
-
-    /**
-     * The method you use to get the Singleton's instance.
+     * This calls newInstance on the child class
+     * and then stores it if you call getInstance again
+     * that instance can be returned again
      */
     public static function getInstance(): mixed
     {
@@ -47,25 +40,5 @@ trait SingletonTrait
         }
 
         return static::$instances[$subclass];
-    }
-
-    /**
-     * Allow the creation of a new instance for testing etc...
-     */
-    public static function newInstance(): mixed
-    {
-        $args = func_get_args();
-
-        return new static(...$args);
-    }
-
-    public function __clone()
-    {
-        throw new CannotCloneSingleton();
-    }
-
-    public function __wakeup()
-    {
-        throw new CannotUnserializeSingleton();
     }
 }

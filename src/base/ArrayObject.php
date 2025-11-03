@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace orange\framework\base;
 
 use ArrayObject as PHPArrayObject;
+use orange\framework\base\traits\BaseTraits;
+use orange\framework\base\traits\FactoryTraits;
 use orange\framework\exceptions\MagicMethodNotFound;
 
 class ArrayObject extends PHPArrayObject
 {
-    public function __construct(array $input = [])
+    use BaseTraits;
+    use FactoryTraits;
+
+    protected function __construct(array $input = [])
     {
         parent::__construct($input, PHPArrayObject::ARRAY_AS_PROPS);
     }
@@ -31,32 +36,31 @@ class ArrayObject extends PHPArrayObject
         return call_user_func_array($name, array_merge([$this->getArrayCopy()], $arguments));
     }
 
+    /**
+     * check if key exists
+     *
+     * @param string $name
+     * @return bool
+     */
     public function has(string $name): bool
     {
         return isset($this[$name]);
     }
 
+    /**
+     * get with default
+     * Returns the value at the specified key if it exists; otherwise, returns the provided default value.
+     *
+     * @param string $name
+     * @param mixed $default
+     * @return mixed
+     */
     public function get(string $name, mixed $default): mixed
     {
         return isset($this[$name]) ? $this[$name] : $default;
     }
-        /**
-     * build a recusrive array of ArrayObject's
-     *
-     * @param array $data
-     * @return array
-     */
-    protected function buildArrayObjects(array $data)
-    {
-        $array = [];
 
-        foreach ($data as $key => $value) {
-            $array[$key] = $value;
-        }
-
-        return $array;
-    }
-        /**
+    /**
      * Allow ArrayObject "merging"
      *
      * @param array $array
@@ -80,5 +84,22 @@ class ArrayObject extends PHPArrayObject
         $this->exchangeArray($this->buildArrayObjects($data));
 
         return $this;
+    }
+
+    /**
+     * build a recursive array of ArrayObject's
+     *
+     * @param array $data
+     * @return array
+     */
+    protected function buildArrayObjects(array $data)
+    {
+        $array = [];
+
+        foreach ($data as $key => $value) {
+            $array[$key] = $value;
+        }
+
+        return $array;
     }
 }
