@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use orange\framework\Application;
+use orange\framework\Env;
 use orange\framework\Log;
 use orange\framework\Data;
 use orange\framework\View;
@@ -13,6 +13,7 @@ use orange\framework\Output;
 use orange\framework\Router;
 use orange\framework\Container;
 use orange\framework\Dispatcher;
+use orange\framework\interfaces\EnvInterface;
 use orange\framework\interfaces\LogInterface;
 use orange\framework\interfaces\DataInterface;
 use orange\framework\interfaces\ViewInterface;

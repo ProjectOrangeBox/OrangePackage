@@ -569,7 +569,7 @@ class Container extends Singleton implements ContainerInterface
                 // is this argument optional?
                 $args[] = $param->getDefaultValue() ?? null;
             } elseif ($type->allowsNull()) {
-                // does this argument all null?
+                // does this argument allow null?
                 $args[] = null;
             } else {
                 $hint = $type ? (string)$type : 'mixed';

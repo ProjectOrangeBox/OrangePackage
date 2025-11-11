@@ -2,6 +2,4 @@
 
 declare(strict_types=1);
 
-use orange\framework\Application;
-
-return Application::fromGlobals();
+return \orange\framework\Application::make()->fromGlobals();

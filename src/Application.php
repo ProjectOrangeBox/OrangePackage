@@ -56,7 +56,7 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  *
  * 3. Configuration Handling
  *     •  Environment (loadEnvironment)
- * Loads environment variables into a static $env array. Parses .ini files if provided. Defines the ENVIRONMENT constant (default: production).
+ * Loads environment variables into a $env array. Parses .ini files if provided. Defines the ENVIRONMENT constant (default: production).
  *     •  Config Files (loadConfig)
  * Loads application configs and merges them with defaults. Supports cascading configs from multiple directories and environment-specific files.
  *     •  Constants
@@ -99,14 +99,30 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
 
 class Application
 {
+    // application config
+    protected array $config;
+
     // Dependency Injection Container
-    protected static ContainerInterface $container;
+    protected ContainerInterface $container;
     // this classes configuration array
-    protected static array $config;
-    // application environmental values
-    protected static array $env;
-    // attached globals $_POST, $_GET, etc...
-    protected static array $globals;
+    protected array $configDirectories;
+
+    // once captured this is the same for any instance
+    protected array  $env;
+    protected array $globals;
+
+    protected static Application $self;
+
+    protected function __construct() {}
+
+    public static function make()
+    {
+        if (!isset(static::$self)) {
+            static::$self = new static();
+        }
+
+        return static::$self;
+    }
 
     /**
      * start a http application
@@ -120,34 +136,34 @@ class Application
      * @throws FileNotFound
      * @throws IncorrectInterface
      */
-    public static function http(array $config = []): ContainerInterface
+    public function http(array $config = []): ContainerInterface
     {
-        // call bootstrap function which returns a container
-        static::bootstrap('http', $config);
+        // call bootstrap function which creates the container
+        $this->bootstrap('http', $config);
 
         // call event
-        static::$container->events->trigger('before.router', static::$container->input);
+        $this->container->events->trigger('before.router', $this->container->input);
 
         // match uri & method to route
-        static::$container->router->match(static::$container->input->requestUri(), static::$container->input->requestMethod());
+        $this->container->router->match($this->container->input->requestUri(), $this->container->input->requestMethod());
 
         // call event
-        static::$container->events->trigger('before.controller', static::$container->router, static::$container->input);
+        $this->container->events->trigger('before.controller', $this->container->router, $this->container->input);
 
         // dispatch route
-        static::$container->output->write(static::$container->dispatcher->call(static::$container->router->getMatched()));
+        $this->container->output->write($this->container->dispatcher->call($this->container->router->getMatched()));
 
         // call event
-        static::$container->events->trigger('before.output', static::$container->router, static::$container->input, static::$container->output);
+        $this->container->events->trigger('before.output', $this->container->router, $this->container->input, $this->container->output);
 
         // send header, status code and output
-        static::$container->output->send();
+        $this->container->output->send();
 
         // call event
-        static::$container->events->trigger('before.shutdown', static::$container->router, static::$container->input, static::$container->output);
+        $this->container->events->trigger('before.shutdown', $this->container->router, $this->container->input, $this->container->output);
 
         // return the container
-        return static::$container;
+        return $this->container;
     }
 
     /**
@@ -163,10 +179,10 @@ class Application
      * @throws FileNotFound
      * @throws IncorrectInterface
      */
-    public static function cli(array $config = []): ContainerInterface
+    public function run(array $config = []): ContainerInterface
     {
         // call bootstrap function which returns a container
-        return static::bootstrap('cli', $config);
+        return $this->bootstrap('cli', $config);
     }
 
     /**
@@ -181,7 +197,7 @@ class Application
      * @throws FileNotFound
      * @throws IncorrectInterface
      */
-    protected static function bootstrap(string $mode, array $config): ContainerInterface
+    protected function bootstrap(string $mode, array $config): ContainerInterface
     {
         // set a undefined value which is not NULL
         define('UNDEFINED', chr(0));
@@ -202,35 +218,38 @@ class Application
         // switch to root
         chdir(__ROOT__);
 
+        // set the globals
+        $this->setGlobals();
+
         // try to setup the environment if it hasn't been loaded already
         // this also sets the ENVIRONMENT constant
-        static::loadEnvironment();
+        $this->loadEnvironment();
 
         // try to setup the application config if it hasn't been loaded already
         // this also setups up the config directories
-        static::loadConfig();
+        $this->setConfigDirectories();
 
-        // the passed config will REPLACE anything in the loaded config by KEY
-        static::$config = array_replace(static::$config, $config);
+        // replace anything loaded with anything sent in
+        $this->config = array_replace($this->loadConfig('application'), $config);
 
-        // set DEBUG default to false (production)
-        define('DEBUG', static::env('DEBUG', false));
+        // set the application config in the container
+        $this->config['config directories'] = $this->configDirectories;
 
         // config also has some additional application setup variables
-        ini_set('display_errors', static::$config['display_errors']);
-        ini_set('display_startup_errors', static::$config['display_startup_errors']);
-        error_reporting(static::$config['error_reporting']);
+        ini_set('display_errors', $this->config['display_errors']);
+        ini_set('display_startup_errors', $this->config['display_startup_errors']);
+        error_reporting($this->config['error_reporting']);
 
         // set timezone
-        date_default_timezone_set(static::$config['timezone'] ??  date_default_timezone_get());
+        date_default_timezone_set($this->config['timezone'] ??  date_default_timezone_get());
 
         // Set internal encoding.
-        ini_set('default_charset', static::$config['encoding']);
-        mb_internal_encoding(static::$config['encoding']);
-        define('CHARSET', static::$config['encoding']);
+        ini_set('default_charset', $this->config['encoding']);
+        mb_internal_encoding($this->config['encoding']);
+        define('CHARSET', $this->config['encoding']);
 
         // set umask to a known state
-        umask(static::$config['umask']);
+        umask($this->config['umask']);
 
         // this extension is required and now part of php 8+
         if (!extension_loaded('mbstring')) {
@@ -238,31 +257,32 @@ class Application
         }
 
         // default to NO character on substitute
-        mb_substitute_character(static::$config['mb_substitute_character']);
+        mb_substitute_character($this->config['mb_substitute_character']);
 
         // the developer can extend this class and override these methods
-        static::preContainer();
-        static::$container = static::bootstrapContainer(static::getServices());
-        static::postContainer();
+        $this->preContainer();
+        $this->bootstrapContainer($this->loadConfig('services'));
+        $this->postContainer();
 
         // return the container
-        return static::$container;
+        return $this->container;
     }
 
     /**
-     * Load helper functions and setup error handlers
+     * run before the container is created
+     * load helpers, error handlers, constants, etc...
      *
      * @return void
      * @throws FileNotFound
      * @throws ConfigFileNotFound
      * @throws InvalidValue
      */
-    protected static function preContainer(): void
+    protected function preContainer(): void
     {
         // include the user supplied helpers
-        $helpers = static::$config['helpers'] ?? [];
+        $helpers = $this->config['helpers'] ?? [];
         // include the orange required helpers
-        $helpers = $helpers + (static::$config['required helpers'] ?? []);
+        $helpers = $helpers + ($this->config['required helpers'] ?? []);
         // now include each helper file
         foreach ($helpers as $helperFile) {
             // get the real path of the helper file
@@ -286,7 +306,7 @@ class Application
         }
 
         // load the constants and apply them
-        foreach (static::getCascadingConfigArray(static::findConfigFiles('constants')) as $name => $value) {
+        foreach ($this->loadConfig('constants') as $name => $value) {
             // Constants should all be uppercase - not an option!
             $name = strtoupper($name);
             // If the constant is not already defined, define it
@@ -304,7 +324,7 @@ class Application
      * @throws InvalidValue
      * @throws IncorrectInterface
      */
-    protected static function bootstrapContainer(array $services): ContainerInterface
+    protected function bootstrapContainer(array $services): void
     {
         // make sure we have a container service
         if (!isset($services['container'])) {
@@ -317,56 +337,41 @@ class Application
         }
 
         // now get the empty container and save a copy in our object
-        $container = $services['container']($services);
+        $this->container = $services['container']($services);
 
         // make sure the container is an instance of the ContainerInterface
-        if (!$container instanceof ContainerInterface) {
+        if (!$this->container instanceof ContainerInterface) {
             throw new IncorrectInterface('The service "container" did not return an object using the container interface.');
         }
-
-        // return the container object
-        return $container;
     }
 
     /**
-     * Place holder incase you extend this class
+     * Run after the container is created
+     * setup application config values in the container
      *
      * @return void
      */
-    protected static function postContainer(): void
+    protected function postContainer(): void
     {
-        // add to container as $application.KEY
-        static::$container->set('$application', static::$config);
+        // make the application config available as $application
+        $this->container->set('$application', $this->config);
     }
 
-    /**
-     * Get the globals array or a specific key from it
-     *
-     * @param null|string $key
-     * @return mixed
-     */
-    public static function fromGlobals(?string $key = null): mixed
+    public function env(string $key, mixed $default = null): mixed
     {
-        // set them if they aren't already set
-        static::setGlobals();
-
-        // if a key is provided then return that value
-        // otherwise return the entire globals array
-        return $key ? (static::$globals[strtolower($key)] ?? null) : static::$globals;
+        return $this->env[$key] ?? $default;
     }
 
     /**
      * Set the globals array
      *
-     * @param array $globals
+     * @param array $userGlobals
      * @return void
      */
-    public static function setGlobals(array $globals = []): void
+    public function setGlobals(array $globals = []): void
     {
-        // set defaults if they aren't already set
-        if (!isset(static::$globals)) {
-            // initialize the globals array
-            static::$globals = [
+        if (empty($this->globals)) {
+            $this->globals = array_replace([
                 'query' => $_GET,
                 'request' => $_POST,
                 'server' => $_SERVER,
@@ -375,13 +380,13 @@ class Application
                 'php_sapi' => PHP_SAPI, // string
                 'stdin' => defined('STDIN'), // boolean
                 'input' => file_get_contents('php://input'), // string
-            ];
+            ], $globals);
         }
+    }
 
-        // replace the globals array with the new values
-        foreach ($globals as $name => $value) {
-            static::$globals[strtolower($name)] = $value;
-        }
+    public function fromGlobals(): array
+    {
+        return $this->globals;
     }
 
     /**
@@ -390,251 +395,123 @@ class Application
      * @return void
      * @throws FileNotFound
      */
-    public static function loadEnvironment(): void
+    public function loadEnvironment(): void
     {
-        // only apply if we haven't already setup the environmental settings
-        if (!isset(static::$env)) {
-            // load from the system
-            static::$env = $_ENV;
-            // clear this out so we don't try to read from it
-            unset($_ENV);
+        // load from the system
+        if (empty($this->env)) {
+            $this->env = $_ENV;
 
-            // Use the .env file(s) they provided as arguments
-            foreach (func_get_args() as $environmentalFile) {
-                // get the real path of the environmental file
-                $environmentalFileRealPath = realpath($environmentalFile);
-                // if the file doesn't exist
-                if (!$environmentalFileRealPath) {
-                    throw new FileNotFound($environmentalFile);
-                }
+            // clear this out so we don't try to read from it but make sure it is still a array
+            $_ENV = [];
 
-                // parse the ini file and merge it into the env array
-                $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
-                // make sure we got an array back
-                if (!is_array($iniArray)) {
-                    throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
-                }
-                // merge the new values in - recursive to handle sections
-                static::$env = array_replace_recursive(static::$env, $iniArray);
+            // get the list of environmental files to load
+            $this->loadEnvironmentFile(func_get_args());
+
+            // set ENVIRONMENT constant - defaults to production if not set in .env
+            if (!defined('ENVIRONMENT')) {
+                define('ENVIRONMENT', strtolower($this->env['ENVIRONMENT'] ?? 'production'));
             }
 
-            // set ENVIRONMENT - defaults to production if not set in .env
-            if (!defined('ENVIRONMENT')) {
-                define('ENVIRONMENT', strtolower(static::env('ENVIRONMENT', 'production')));
+            // set DEBUG default to false (production)
+            if (!defined('DEBUG')) {
+                define('DEBUG', $this->env['DEBUG'] ?? false);
             }
         }
     }
 
     /**
-     * Setup the configuration directories
+     * set the config directories
+     * or use the defaults if none provided
      *
      * @return void
      * @throws FileNotFound
      */
-    public static function loadConfig(): void
+    public function setConfigDirectories(): void
     {
-        // did we setup config already?
-        if (!isset(static::$config)) {
-            // get the application config array
-            static::$config = static::getCascadingConfigArray(static::getApplicationConfigFiles(func_get_args()));
-            // setup the config directories
-            static::setupConfigDirectories();
+        // make sure the environment is loaded
+        $this->loadEnvironment();
+
+        // Did we setup the config directories already?
+        if (!isset($this->configDirectories)) {
+            // get the list of application config files to load
+            $arrayOfConfigDirectories = func_get_args();
+            // if no config directories were provided
+            if (empty($arrayOfConfigDirectories)) {
+                // default location of application config folder
+                $arrayOfConfigDirectories[] = __ROOT__ . DIRECTORY_SEPARATOR . 'config';
+                // default location of application config folder
+                $arrayOfConfigDirectories[] = __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . ENVIRONMENT;
+            } else {
+                // use the provided config directories
+                $this->configDirectories = $arrayOfConfigDirectories;
+            }
+
+            // orange config folder is always checked first
+            array_unshift($this->configDirectories, __DIR__ . DIRECTORY_SEPARATOR . 'config');
         }
     }
 
     /**
-     * The only place $_ENV should be and accessed
+     * load a config file from the config directories
      *
-     * @param string $key
-     * @param mixed|null $default
-     * @return mixed
-     */
-    public static function env(string $key, mixed $default = null): mixed
-    {
-        // Load the environment variables
-        static::loadEnvironment();
-
-        // Get the value from the environment variables
-        $value = static::$env[$key] ?? $default;
-
-        // Cast the value to the appropriate type
-        if (is_string($value)) {
-            $value = match (strtolower($value)) {
-                'true'  => true,
-                'false' => false,
-                'empty' => '',
-                'null'  => null,
-                default => $value,
-            };
-        }
-        // Return the value
-        return $value;
-    }
-
-    /**
-     * Get the service configuration array from the specified directories.
-     * this is its own method so it can be overwritten easier if Application is extended
-     *
-     * @param array $directories
+     * @param string $configFilename
      * @return array
      * @throws ConfigFileDidNotReturnAnArray
      */
-    protected static function getServices(): array
+    protected function loadConfig(string $configFilename): array
     {
-        // Get the service configuration array
-        return static::getCascadingConfigArray(static::findConfigFiles('services'));
-    }
+        // make sure we have the config directories setup
+        $this->setConfigDirectories();
 
-    /**
-     * Get the cascading configuration array from the specified directories.
-     *
-     * @param array $files
-     * @return array
-     * @throws ConfigFileDidNotReturnAnArray
-     */
-    protected static function getCascadingConfigArray(array $files): array
-    {
-        // Initialize the config array
-        $config = [];
-        // Iterate through the directories
-        foreach ($files as $file) {
-            // Check if the config file exists
-            if ($fileRealPath = realpath($file)) {
+        // initialize the config array
+        $fileConfig = [];
+        // go through each config directory and load the config file if it exists
+        foreach ($this->configDirectories as $directory) {
+            // build the config file path
+            $configFile = $directory . DIRECTORY_SEPARATOR . $configFilename . '.php';
+            // does the config file exist?
+            if (realpath($configFile)) {
                 // Include the config file
-                $includedConfig = include $fileRealPath;
+                $includedConfig = include $configFile;
                 // Check if the included config is an array
                 if (!is_array($includedConfig)) {
-                    throw new ConfigFileDidNotReturnAnArray($fileRealPath);
+                    throw new ConfigFileDidNotReturnAnArray($configFile);
                 }
                 // replace the included config with the existing config
-                $config = array_replace($config, $includedConfig);
+                $fileConfig = array_replace_recursive($fileConfig, $includedConfig);
             }
         }
-        // Return the config array
-        return $config;
+        // return the final config array
+        return $fileConfig;
     }
 
     /**
-     * Build the default config file array for a specific filename
+     * Load the environmental files provided
      *
-     * @param string $filename
-     * @return array
-     * @throws FileNotFound
-     */
-    protected static function findConfigFiles(string $filename): array
-    {
-        // array of config files to load
-        $configFiles = [];
-
-        // always load the framework default config first
-        static::append($configFiles, __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . $filename . '.php', true);
-
-        // Arrays in the application.php config of ['services files'] or ['constants files'] for example
-        $configKey = $filename . ' files';
-
-        // did the user supply any config files in the application config?
-        if (isset(static::$config[$configKey]) && is_array(static::$config[$configKey])) {
-            // load the user supplied config files in the order they were provided
-            foreach (static::$config[$configKey] as $file) {
-                // these are user supplied in the config so they are required
-                static::append($configFiles, $file, true);
-            }
-        } else {
-            // these are guesses because they user did not supply them so they are not required
-            static::append($configFiles, __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . $filename . '.php', false);
-            static::append($configFiles, __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . ENVIRONMENT . DIRECTORY_SEPARATOR . $filename . '.php', false);
-        }
-
-        // return the config files found
-        return $configFiles;
-    }
-
-    /**
-     * Append a config file to the array if it exists
-     *
-     * @param array &$array
-     * @param string $value
-     * @param bool $required
+     * @param array $arrayOfEnvFiles2Load
      * @return void
      * @throws FileNotFound
+     * @throws InvalidConfigurationValue
      */
-    protected static function append(array &$array, string $value, bool $required): void
+    protected function loadEnvironmentFile(array $arrayOfEnvFiles2Load): void
     {
-        // get the real path of the value
-        $valueRealPath = realpath($value);
-        // if it doesn't exist and is required then throw an error
-        if (!$valueRealPath) {
-            // if the file is required and doesn't exist then throw an error
-            if ($required) {
-                throw new FileNotFound($value);
-            }
-        } else {
-            // add the real path to the array
-            $array[$valueRealPath] = $valueRealPath;
-        }
-    }
-
-    /**
-     * Get the application config files to load
-     *
-     * @param array $userProvidedApplicationConfigFiles
-     * @return array
-     * @throws FileNotFound
-     */
-    protected static function getApplicationConfigFiles(array $userProvidedApplicationConfigFiles): array
-    {
-        // load environment if it hasn't been already because we need ENVIRONMENT
-        static::loadEnvironment();
-
-        // array of application config files to load
-        $configFiles = [];
-
-        // always load the framework default application config first
-        static::append($configFiles, __DIR__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'application.php', true);
-
-        // did the user provide any application config files as arguments?
-        if (!empty($userProvidedApplicationConfigFiles)) {
-            // if they provided any application config files then load them in the order provided
-            foreach ($userProvidedApplicationConfigFiles as $file) {
-                // these are user supplied in the config so they are required
-                static::append($configFiles, $file, true);
-            }
-        } else {
-            // if they didn't provide any application config files then try to guess them
-            static::append($configFiles, __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . 'application.php', false);
-            static::append($configFiles, __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . ENVIRONMENT . DIRECTORY_SEPARATOR . 'application.php', false);
-        }
-
-        return $configFiles;
-    }
-
-    /**
-     * Setup the configuration directories
-     *
-     * @return void
-     * @throws ConfigFileDidNotReturnAnArray
-     * @throws FileNotFound
-     */
-    protected static function setupConfigDirectories(): void
-    {
-        // did they provide a config directories config setting?
-        // if not we will use the sydtem defaults
-        if (isset(static::$config['config directories'])) {
-            // let's make sure they included the config directories
-            if (!is_array(static::$config['config directories'])) {
-                throw new ConfigFileDidNotReturnAnArray('application.config directories');
+        // Use the .env file(s) they provided as arguments
+        foreach ($arrayOfEnvFiles2Load as $environmentalFile) {
+            // get the real path of the environmental file
+            $environmentalFileRealPath = realpath($environmentalFile);
+            // if the file doesn't exist
+            if (!$environmentalFileRealPath) {
+                throw new FileNotFound($environmentalFile);
             }
 
-            // prepend the orange framework default config directory first to allow overwriting
-            array_unshift(static::$config['config directories'], __DIR__ . DIRECTORY_SEPARATOR . 'config');
-        } else {
-            // since this is not setup we will use the defaults
-            static::$config['config directories'] = [];
-
-            // if they didn't include the config directories then build them from the application config files
-            static::append(static::$config['config directories'], __DIR__ . DIRECTORY_SEPARATOR . 'config', true);
-            static::append(static::$config['config directories'], __ROOT__ . DIRECTORY_SEPARATOR . 'config', false);
-            static::append(static::$config['config directories'], __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . ENVIRONMENT, false);
+            // parse the ini file and merge it into the env array
+            $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
+            // make sure we got an array back
+            if (!is_array($iniArray)) {
+                throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
+            }
+            // merge the new values in - recursive to handle sections
+            $this->env = array_replace_recursive($this->env, $iniArray);
         }
     }
 }

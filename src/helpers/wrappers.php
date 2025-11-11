@@ -80,3 +80,10 @@ if (!function_exists('output')) {
         return container()->output;
     }
 }
+
+if (!function_exists('env')) {
+    function env(string $key, mixed $default = null): mixed
+    {
+        return \orange\framework\Application::make()->env($key, $default);
+    }
+}
