@@ -448,6 +448,8 @@ class Application
     {
         // Did we setup the config directories already?
         if (!isset($this->configDirectories)) {
+            // initialize the config directories array
+            $this->configDirectories = [];
             // make sure the environment is loaded
             $this->loadEnvironment();
             // get the list of application config files to load
@@ -458,14 +460,12 @@ class Application
                 $arrayOfConfigDirectories[] = __ROOT__ . DIRECTORY_SEPARATOR . 'config';
                 // default location of application config folder
                 $arrayOfConfigDirectories[] = __ROOT__ . DIRECTORY_SEPARATOR . 'config' . DIRECTORY_SEPARATOR . ENVIRONMENT;
-            } else {
-                // use the provided config directories
-                $this->configDirectories = $arrayOfConfigDirectories;
             }
-
+            // use the provided config directories
+            $this->configDirectories = $arrayOfConfigDirectories;
             // orange config folder is always checked first
             array_unshift($this->configDirectories, __DIR__ . DIRECTORY_SEPARATOR . 'config');
-        }
+        };
     }
 
     /**
