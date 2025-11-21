@@ -19,7 +19,8 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  *
  * This file defines the Application class in the orange\framework namespace.
  * It acts as the entry point and bootstrapper for Orange applications, providing both HTTP and CLI modes.
- * Its main responsibility is to initialize the environment, load configuration, prepare services, and then run the application lifecycle.
+ * It's main responsibility is to initialize the environment, load configuration, prepare services, and
+ * then run the application lifecycle.
  *
  * ⸻
  *
@@ -56,9 +57,11 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  *
  * 3. Configuration Handling
  *     •  Environment (loadEnvironment)
- * Loads environment variables into a $env array. Parses .ini files if provided. Defines the ENVIRONMENT constant (default: production).
+ * Loads environment variables into a $env array. Parses .ini files if provided.
+ * Defines the ENVIRONMENT constant (default: production).
  *     •  Config Files (loadConfig)
- * Loads application configs and merges them with defaults. Supports cascading configs from multiple directories and environment-specific files.
+ * Loads application configs and merges them with defaults.
+ * Supports cascading configs from multiple directories and environment-specific files.
  *     •  Constants
  * Loads config-defined constants, enforcing uppercase.
  *
@@ -99,7 +102,10 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
 
 class Application
 {
-    // application config
+    // singleton instance
+    protected static Application $self;
+
+    // application (this class) config
     protected array $config;
 
     // Dependency Injection Container
@@ -107,15 +113,23 @@ class Application
     // this classes configuration array
     protected array $configDirectories;
 
-    // once captured this is the same for any instance
-    protected array  $env;
-    protected array $globals;
+    // environment variables
+    protected array $env = [];
+    // captured globals
+    protected array $globals = [];
+    // singleton pattern
+    protected function __construct()
+    {
+        // empty to make protected & singleton
+        // only use the Make static function
+    }
 
-    protected static Application $self;
-
-    protected function __construct() {}
-
-    public static function make()
+    /**
+     * singleton pattern
+     *
+     * @return Application
+     */
+    public static function make(): Application
     {
         if (!isset(static::$self)) {
             static::$self = new static();
@@ -140,6 +154,8 @@ class Application
     {
         // call bootstrap function which creates the container
         $this->bootstrap('http', $config);
+
+        // the container is now setup so we can use services
 
         // call event
         $this->container->events->trigger('before.router', $this->container->input);
@@ -230,7 +246,7 @@ class Application
         $this->setConfigDirectories();
 
         // replace anything loaded with anything sent in
-        $this->config = array_replace($this->loadConfig('application'), $config);
+        $this->config = array_replace($this->loadConfigFile('application'), $config);
 
         // set the application config in the container
         $this->config['config directories'] = $this->configDirectories;
@@ -261,7 +277,7 @@ class Application
 
         // the developer can extend this class and override these methods
         $this->preContainer();
-        $this->bootstrapContainer($this->loadConfig('services'));
+        $this->bootstrapContainer($this->loadConfigFile('services'));
         $this->postContainer();
 
         // return the container
@@ -292,7 +308,7 @@ class Application
                 throw new FileNotFound($helperFile);
             }
             // include the helper file
-            include $helperFileRealPath;
+            include_once $helperFileRealPath;
         }
 
         // now errorHandler() & errorHandler() should be setup
@@ -306,7 +322,7 @@ class Application
         }
 
         // load the constants and apply them
-        foreach ($this->loadConfig('constants') as $name => $value) {
+        foreach ($this->loadConfigFile('constants') as $name => $value) {
             // Constants should all be uppercase - not an option!
             $name = strtoupper($name);
             // If the constant is not already defined, define it
@@ -405,7 +421,9 @@ class Application
             $_ENV = [];
 
             // get the list of environmental files to load
-            $this->loadEnvironmentFile(func_get_args());
+            foreach (func_get_args() as $environmentalFiles) {
+                $this->loadEnvironmentFile($environmentalFiles);
+            }
 
             // set ENVIRONMENT constant - defaults to production if not set in .env
             if (!defined('ENVIRONMENT')) {
@@ -428,11 +446,10 @@ class Application
      */
     public function setConfigDirectories(): void
     {
-        // make sure the environment is loaded
-        $this->loadEnvironment();
-
         // Did we setup the config directories already?
         if (!isset($this->configDirectories)) {
+            // make sure the environment is loaded
+            $this->loadEnvironment();
             // get the list of application config files to load
             $arrayOfConfigDirectories = func_get_args();
             // if no config directories were provided
@@ -458,13 +475,14 @@ class Application
      * @return array
      * @throws ConfigFileDidNotReturnAnArray
      */
-    protected function loadConfig(string $configFilename): array
+    protected function loadConfigFile(string $configFilename): array
     {
         // make sure we have the config directories setup
         $this->setConfigDirectories();
 
         // initialize the config array
         $fileConfig = [];
+
         // go through each config directory and load the config file if it exists
         foreach ($this->configDirectories as $directory) {
             // build the config file path
@@ -481,6 +499,7 @@ class Application
                 $fileConfig = array_replace_recursive($fileConfig, $includedConfig);
             }
         }
+
         // return the final config array
         return $fileConfig;
     }
@@ -488,30 +507,27 @@ class Application
     /**
      * Load the environmental files provided
      *
-     * @param array $arrayOfEnvFiles2Load
+     * @param array $environmentalFiles
      * @return void
      * @throws FileNotFound
      * @throws InvalidConfigurationValue
      */
-    protected function loadEnvironmentFile(array $arrayOfEnvFiles2Load): void
+    protected function loadEnvironmentFile(string $environmentalFile): void
     {
-        // Use the .env file(s) they provided as arguments
-        foreach ($arrayOfEnvFiles2Load as $environmentalFile) {
-            // get the real path of the environmental file
-            $environmentalFileRealPath = realpath($environmentalFile);
-            // if the file doesn't exist
-            if (!$environmentalFileRealPath) {
-                throw new FileNotFound($environmentalFile);
-            }
-
-            // parse the ini file and merge it into the env array
-            $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
-            // make sure we got an array back
-            if (!is_array($iniArray)) {
-                throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
-            }
-            // merge the new values in - recursive to handle sections
-            $this->env = array_replace_recursive($this->env, $iniArray);
+        // get the real path of the environmental file
+        $environmentalFileRealPath = realpath($environmentalFile);
+        // if the file doesn't exist
+        if (!$environmentalFileRealPath) {
+            throw new FileNotFound($environmentalFile);
         }
+
+        // parse the ini file and merge it into the env array
+        $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
+        // make sure we got an array back
+        if (!is_array($iniArray)) {
+            throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
+        }
+        // merge the new values in - recursive to handle sections
+        $this->env = array_replace_recursive($this->env, $iniArray);
     }
 }
