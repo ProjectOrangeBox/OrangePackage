@@ -385,13 +385,21 @@ class Application
         $this->container->set('$application', $this->config);
     }
 
+    /**
+     * Get the application env values
+     * $_ENV has already been unset for security
+     *
+     * @param string $key
+     * @param mixed|null $default
+     * @return mixed
+     */
     public function env(string $key, mixed $default = null): mixed
     {
         return $this->env[$key] ?? $default;
     }
 
     /**
-     * Set the globals array
+     * Set the Application globals array
      *
      * @param array $userGlobals
      * @return void
@@ -409,9 +417,21 @@ class Application
                 'stdin' => defined('STDIN'), // boolean
                 'input' => file_get_contents('php://input'), // string
             ], $globals);
+
+            // unset for security
+            unset($_GET);
+            unset($_POST);
+            unset($_SERVER);
+            unset($_COOKIE);
+            unset($_FILES);
         }
     }
 
+    /**
+     * Get the Application globals array
+     *
+     * @return array
+     */
     public function fromGlobals(): array
     {
         return $this->globals;
@@ -430,7 +450,7 @@ class Application
             $this->env = $_ENV;
 
             // clear this out so we don't try to read from it but make sure it is still a array
-            $_ENV = [];
+            unset($_ENV);
 
             // get the list of environmental files to load
             foreach (func_get_args() as $environmentalFiles) {
