@@ -139,6 +139,18 @@ class Application
     }
 
     /**
+     * Wrapper for make
+     * to make it seem like you are getting the instance
+     * not "making" an instance.
+     *
+     * @return Application
+     */
+    public static function get(): Application
+    {
+        return static::make();
+    }
+
+    /**
      * start a http application
      *
      * @param null|array $config

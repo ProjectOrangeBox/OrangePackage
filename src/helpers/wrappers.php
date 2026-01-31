@@ -84,6 +84,6 @@ if (!function_exists('output')) {
 if (!function_exists('env')) {
     function env(string $key, mixed $default = null): mixed
     {
-        return \orange\framework\Application::make()->env($key, $default);
+        return \orange\framework\Application::get()->env($key, $default);
     }
 }
