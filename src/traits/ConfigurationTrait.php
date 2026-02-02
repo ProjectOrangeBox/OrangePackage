@@ -130,7 +130,7 @@ trait ConfigurationTrait
     {
         $reflection = new \ReflectionClass(get_class($this));
         $filename = $reflection->getFileName();
-        $shortName = empty($arg) ? strtolower($reflection->getShortName()) : $arg;
+        $shortName = empty($arg) ? mb_strtolower($reflection->getShortName()) : $arg;
 
         $testPath = [
             dirname($filename) . '/config/' . $shortName . '.php',
@@ -240,7 +240,7 @@ trait ConfigurationTrait
      */
     protected function camelize(string $str, bool $ucFirst = false)
     {
-        $converted = strtolower($str[0]) . substr(str_replace(' ', '', ucwords(preg_replace('/[\s_]+/', ' ', $str))), 1);
+        $converted = mb_strtolower($str[0]) . substr(str_replace(' ', '', ucwords(preg_replace('/[\s_]+/', ' ', $str))), 1);
 
         return $ucFirst ? ucfirst($converted) : $converted;
     }

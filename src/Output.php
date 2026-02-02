@@ -362,11 +362,11 @@ class Output extends Singleton implements OutputInterface
 
         if ($replace != self::NO) {
             $splitOn = ($replace == self::REPLACEALL) ? '/(:| )/' : '/(;|=|,)/';
-            $prefix = strtolower(preg_split($splitOn, $value)[0]);
+            $prefix = mb_strtolower(preg_split($splitOn, $value)[0]);
             $prefixLength = strlen($prefix);
 
             foreach ($this->headers as $index => $headerValue) {
-                if (substr(strtolower($headerValue), 0, $prefixLength) == $prefix) {
+                if (substr(mb_strtolower($headerValue), 0, $prefixLength) == $prefix) {
                     unset($this->headers[$index]);
                 }
             }
@@ -425,7 +425,7 @@ class Output extends Singleton implements OutputInterface
         logMsg('DEBUG', __METHOD__, ['code' => $code]);
 
         if (is_string($code)) {
-            $code = strtolower($code);
+            $code = mb_strtolower($code);
 
             if (!array_key_exists($code, $this->responseCodesInternalStringKeys)) {
                 throw new OutputException('Unknown HTTP Status Code ' . $code);

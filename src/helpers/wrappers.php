@@ -55,7 +55,7 @@ if (!function_exists('config')) {
 
 /* wrapper for router get url */
 if (!function_exists('getUrl')) {
-    function getUrl(string $searchName, array $arguments = [], ?bool $skipCheckingType = null): string
+    function getUrl(string $searchName = '', array $arguments = [], ?bool $skipCheckingType = null): string
     {
         // throws an exception if the router service isn't setup
         return container()->router->getUrl($searchName, $arguments, $skipCheckingType);

@@ -174,6 +174,7 @@ class Log extends Singleton implements LogInterface, LoggerInterface
             $this->handler = $this->config['handler'];
         } else {
             $this->handler = $this;
+
             $this->isFileWritable($this->config['filepath']);
         }
     }
@@ -326,7 +327,7 @@ class Log extends Singleton implements LogInterface, LoggerInterface
             if (!isset($this->psrLevels[strtoupper($input)])) {
                 throw new InvalidValue('Unknown message log level "' . $input . '".');
             }
-            $method = strtolower($input);
+            $method = mb_strtolower($input);
         } else {
             if (!isset($this->psrLevelsInt[$input])) {
                 throw new InvalidValue('Unknown message log level "' . $input . '".');

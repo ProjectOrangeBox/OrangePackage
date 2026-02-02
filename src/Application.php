@@ -239,7 +239,7 @@ class Application
         define('UNDEFINED', chr(0));
 
         // setup a constant to indicate how this application was started
-        define('RUN_MODE', strtolower($mode));
+        define('RUN_MODE', mb_strtolower($mode));
 
         // let's make sure they setup __ROOT__
         if (!defined('__ROOT__')) {
@@ -467,7 +467,7 @@ class Application
 
             // set ENVIRONMENT constant - defaults to production if not set in .env
             if (!defined('ENVIRONMENT')) {
-                define('ENVIRONMENT', strtolower($this->env['ENVIRONMENT'] ?? 'production'));
+                define('ENVIRONMENT', mb_strtolower($this->env['ENVIRONMENT'] ?? 'production'));
             }
 
             // set DEBUG default to false (production)

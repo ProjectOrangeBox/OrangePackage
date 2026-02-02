@@ -176,7 +176,7 @@ abstract class BaseController
     {
         // convert the key to lowercase to match the attached services
         // this will throw an exception if the service is not found
-        $this->attachedServices[strtolower($key)] = container()->get($name ?? $key);
+        $this->attachedServices[mb_strtolower($key)] = container()->get($name ?? $key);
     }
 
     /**
@@ -192,7 +192,7 @@ abstract class BaseController
     public function __get(string $key): mixed
     {
         // convert the key to lowercase to match the attached services
-        $lowercaseKey = strtolower($key);
+        $lowercaseKey = mb_strtolower($key);
 
         if (!isset($this->attachedServices[$lowercaseKey])) {
             throw new ServiceNotFound($key);

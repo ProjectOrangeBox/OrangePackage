@@ -474,7 +474,7 @@ abstract class ViewAbstract extends Singleton implements ViewInterface
                 }
 
                 // Normalize the controller string
-                $namespacedController = strtolower($controller);
+                $namespacedController = mb_strtolower($controller);
 
                 // Remove "controller" suffix if it exists
                 if (str_ends_with($namespacedController, 'controller')) {

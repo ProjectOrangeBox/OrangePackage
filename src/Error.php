@@ -188,7 +188,7 @@ class Error extends Singleton
         $this->errorViewDirectory = $this->config['error view directory'];
 
         // assume worst case it's production - also make lowercase because we use this as a directory in the path
-        $this->envDirectory = defined('ENVIRONMENT') ? strtolower(ENVIRONMENT) : 'production';
+        $this->envDirectory = defined('ENVIRONMENT') ? mb_strtolower(ENVIRONMENT) : 'production';
 
         // let's try to determine the output type
         // the output class will auto convert this to a mime type for output
@@ -411,7 +411,7 @@ class Error extends Singleton
             $service = $this->container->get($name);
         } catch (Throwable $e) {
             // fall back to orange classes / services
-            $className = ucfirst(strtolower($name));
+            $className = ucfirst(mb_strtolower($name));
 
             // same folder as this class
             require_once __DIR__ . DIRECTORY_SEPARATOR . $className . '.php';

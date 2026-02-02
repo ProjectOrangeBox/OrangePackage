@@ -124,7 +124,7 @@ if (!function_exists('convertLabel')) {
                 break;
             case 'slug':
                 $value = preg_replace('/[^a-zA-Z0-9 -]/', '', $value);
-                $value = strtolower(str_replace(' ', '-', trim($value)));
+                $value = mb_strtolower(str_replace(' ', '-', trim($value)));
                 $value = preg_replace('/-+/', '-', $value);
                 break;
             default:

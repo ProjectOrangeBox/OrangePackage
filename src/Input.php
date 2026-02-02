@@ -301,7 +301,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $type);
 
-        return $asLowercase ? strtolower($type) : strtoupper($type);
+        return $asLowercase ? mb_strtolower($type) : strtoupper($type);
     }
 
     /**
@@ -333,7 +333,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $method);
 
-        return $asLowercase ? strtolower($method) : strtoupper($method);
+        return $asLowercase ? mb_strtolower($method) : strtoupper($method);
     }
 
     /**
@@ -348,7 +348,7 @@ class Input extends Singleton implements InputInterface
         // determine the request type
         if (($this->server('http_x_requested_with', '') == 'xmlhttprequest') || (strpos($this->server('http_accept', ''), 'application/json') !== false)) {
             $requestType = 'ajax';
-        } elseif (strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
+        } elseif (mb_strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
             $requestType = 'cli';
         } else {
             $requestType = 'html';
@@ -356,7 +356,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $requestType);
 
-        return $asLowercase ? strtolower($requestType) : strtoupper($requestType);
+        return $asLowercase ? mb_strtolower($requestType) : strtoupper($requestType);
     }
 
     /**
@@ -437,7 +437,7 @@ class Input extends Singleton implements InputInterface
      */
     protected function normalizeServerKey(string $key): string
     {
-        return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
+        return str_replace('_', ' ', str_replace(['http_', 'server_'], '', mb_strtolower($key)));
     }
 
     /**

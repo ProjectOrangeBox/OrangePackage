@@ -17,7 +17,7 @@ final class RouterTest extends unitTestHelper
     protected function setUp(): void
     {
         $config = [
-            'site' => 'www.example.com',
+            'site url' => 'www.example.com',
             'routes' => [
                 ['method' => '*', 'name' => 'product', 'url' => '/product/([a-z]+)/(\d+)'],
 
@@ -157,6 +157,6 @@ final class RouterTest extends unitTestHelper
     {
         $this->expectException(MissingRequired::class);
 
-        Router::newInstance(['site' => null], Input::newInstance([]));
+        Router::newInstance(['site url' => null], Input::newInstance([]));
     }
 }

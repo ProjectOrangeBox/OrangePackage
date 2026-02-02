@@ -162,13 +162,17 @@ class Router extends Singleton implements RouterInterface
         // set the input service
         $this->inputService = $input;
 
-        // Validate the configuration
-        if (!isset($this->config['site']) || empty($this->config['site'])) {
-            throw new MissingRequired('Route config "site" in routes.php can not be empty.');
+        // Set the site URL
+        if (isset($this->config['site url'])) {
+            $this->siteUrl = $this->config['site url'];
+        } else {
+            $this->siteUrl = $input->server('HTTP_HOST', '');
         }
 
-        // Set the site URL - this is required and checked above
-        $this->siteUrl = $this->config['site'];
+        // let's make sure we set the site url
+        if (empty($this->siteUrl)) {
+            throw new InvalidValue('Can not determine site url.');
+        }
 
         // Set the skip parameter type checking flag
         $this->skipParameterTypeChecking = $this->config['skip parameter type checking'] ?? false;
@@ -233,7 +237,7 @@ class Router extends Singleton implements RouterInterface
             // does this route have a name to use with get url?
             if (isset($options['name'])) {
                 // add it to the array by name
-                $this->routesByName[strtolower($options['name'])] = $options['url'];
+                $this->routesByName[mb_strtolower($options['name'])] = $options['url'];
             }
         }
 
@@ -335,12 +339,12 @@ class Router extends Singleton implements RouterInterface
         logMsg('DEBUG', __METHOD__, ['key' => $key]);
 
         // Check if the key is valid
-        if ($key != null && !\array_key_exists(strtolower($key), $this->matched)) {
+        if ($key != null && !\array_key_exists(mb_strtolower($key), $this->matched)) {
             throw new InvalidValue('Unknown routing value "' . $key . '"');
         }
 
         // Return the matched data
-        return ($key) ? $this->matched[strtolower($key)] : $this->matched;
+        return ($key) ? $this->matched[mb_strtolower($key)] : $this->matched;
     }
 
     /**
@@ -351,57 +355,61 @@ class Router extends Singleton implements RouterInterface
      * @return string The generated URL.
      * @throws RouterNameNotFound If the route name is not found.
      */
-    public function getUrl(string $searchName, array $arguments = [], ?bool $skipParameterTypeChecking = null): string
+    public function getUrl(string $searchName = '', array $arguments = [], ?bool $skipParameterTypeChecking = null): string
     {
         logMsg('INFO', __METHOD__ . ' ' . $searchName);
         logMsg('DEBUG', '', ['searchName' => $searchName, 'arguments' => $arguments, 'skipParameterTypeChecking' => $skipParameterTypeChecking]);
 
-        // Normalize the search name
-        $lowercaseSearchName = mb_strtolower($searchName);
+        // default to site url
+        $matchedUrl = $this->siteUrl;
 
-        // Check if the route exists
-        if (!isset($this->routesByName[$lowercaseSearchName])) {
-            throw new RouterNameNotFound($searchName);
-        }
+        // if they provided a name
+        // then we need to look it up and do further processing
+        if (!empty($searchName)) {
+            // Normalize the search name
+            $lowercaseSearchName = mb_strtolower($searchName);
 
-        // let's begin
-        $url = $this->routesByName[$lowercaseSearchName];
-
-        $matches = [];
-
-        // merge the arguments with the available parameters
-        $hasArgs = preg_match_all('/\((.*?)\)/m', $url, $matches, PREG_SET_ORDER, 0);
-
-        // do the number of arguments passed in match the number of arguments in the url?
-        if (count($matches) != count($arguments)) {
-            throw new InvalidValue('Parameter count mismatch. Expecting ' . count($matches) . ' got ' . count($arguments) . ' route named "' . $searchName . '".');
-        }
-
-        // ok let's start off with the url
-        $matchedUrl = $url;
-
-        // does this url have any arguments?
-        if ($hasArgs) {
-            // Determine if we should skip parameter type checking
-            $skipParameterTypeChecking = is_bool($skipParameterTypeChecking) ? $skipParameterTypeChecking : $this->skipParameterTypeChecking;
-            // Get the URL matches
-            foreach ($matches as $index => $match) {
-                // convert to a string
-                $value = (string)$arguments[$index];
-
-                // make sure the argument matches the regular expression for that segment
-                if (!$skipParameterTypeChecking && !preg_match('@' . $match[0] . '@m', $value)) {
-                    throw new InvalidValue('Parameter mismatch. Expecting ' . $match[1] . ' got ' . $value);
-                }
-
-                // replace the segment with the passed argument
-                $matchedUrl = preg_replace('/' . preg_quote($match[0], '/') . '/', $value, $matchedUrl, 1);
+            // Check if the route exists
+            if (!isset($this->routesByName[$lowercaseSearchName])) {
+                throw new RouterNameNotFound($searchName);
             }
-        }
 
-        // is the matchedUrl now empty?
-        if (empty($matchedUrl)) {
-            throw new RouterNameNotFound($searchName);
+            // let's begin
+            $matchedUrl = $this->routesByName[$lowercaseSearchName];
+
+            $matches = [];
+
+            // merge the arguments with the available parameters
+            $hasArgs = preg_match_all('/\((.*?)\)/m', $matchedUrl, $matches, PREG_SET_ORDER, 0);
+
+            // do the number of arguments passed in match the number of arguments in the url?
+            if (count($matches) != count($arguments)) {
+                throw new InvalidValue('Parameter count mismatch. Expecting ' . count($matches) . ' got ' . count($arguments) . ' route named "' . $searchName . '".');
+            }
+
+            // does this url have any arguments?
+            if ($hasArgs) {
+                // Determine if we should skip parameter type checking
+                $skipParameterTypeChecking = is_bool($skipParameterTypeChecking) ? $skipParameterTypeChecking : $this->skipParameterTypeChecking;
+                // Get the URL matches
+                foreach ($matches as $index => $match) {
+                    // convert to a string
+                    $value = (string)$arguments[$index];
+
+                    // make sure the argument matches the regular expression for that segment
+                    if (!$skipParameterTypeChecking && !preg_match('@' . $match[0] . '@m', $value)) {
+                        throw new InvalidValue('Parameter mismatch. Expecting ' . $match[1] . ' got ' . $value);
+                    }
+
+                    // replace the segment with the passed argument
+                    $matchedUrl = preg_replace('/' . preg_quote($match[0], '/') . '/', $value, $matchedUrl, 1);
+                }
+            }
+
+            // is the matchedUrl now empty?
+            if (empty($matchedUrl)) {
+                throw new RouterNameNotFound($searchName);
+            }
         }
 
         logMsg('INFO', __METHOD__ . ' matched Url ' . $matchedUrl);

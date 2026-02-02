@@ -27,7 +27,7 @@ final class ViewerTest extends unitTestHelper
         $this->instance = View::getInstance(
             $config,
             Data::getInstance([]),
-            Router::getInstance(['site' => 'www.example.com'], Input::getInstance([
+            Router::getInstance(['site url' => 'www.example.com'], Input::getInstance([
                 'force https' => false,
             ])),
         );
