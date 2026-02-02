@@ -192,6 +192,8 @@ class Log extends Singleton implements LogInterface, LoggerInterface
 
         $this->enabled = $this->threshold !== 0;
 
+        $this->isFileWritable($this->config['filepath']);
+
         return $this;
     }
 
@@ -348,18 +350,20 @@ class Log extends Singleton implements LogInterface, LoggerInterface
     protected function isFileWritable(string $file): bool
     {
         // check we can write in the directory
-        $dir = dirname($file);
+        if ($this->enabled) {
+            $dir = dirname($file);
 
-        if (!file_exists($dir)) {
-            try {
-                mkdir($dir, 0777, true);
-            } catch (Throwable $e) {
+            if (!file_exists($dir)) {
+                try {
+                    mkdir($dir, 0777, true);
+                } catch (Throwable $e) {
+                    throw new DirectoryNotWritable($dir);
+                }
+            }
+
+            if (!is_writable($dir)) {
                 throw new DirectoryNotWritable($dir);
             }
-        }
-
-        if (!is_writable($dir)) {
-            throw new DirectoryNotWritable($dir);
         }
 
         return true;
