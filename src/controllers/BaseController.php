@@ -105,10 +105,13 @@ abstract class BaseController
             include_once $helperFilePath;
         }
 
-        // add the (local to extending controller) view path
-        foreach (['/', '/../', '/../../', '/../../../'] as $parents) {
-            if ($addPath = realpath($parentPath . $parents . 'views')) {
-                $this->view->search->addDirectory($addPath, DirectorySearch::FIRST);
+        // if we loaded the view service
+        if (method_exists($this->view, 'search')) {
+            // then attach the local to extending controller view folders if available
+            foreach (['/', '/../', '/../../', '/../../../'] as $parents) {
+                if ($addPath = realpath($parentPath . $parents . 'views')) {
+                    $this->view->search->addDirectory($addPath, DirectorySearch::FIRST);
+                }
             }
         }
 
@@ -116,9 +119,9 @@ abstract class BaseController
         $this->beforeMethodCalled();
     }
 
-    protected function beforeMethodCalled()
-    {
-    }
+    // wrapper to extend in child class if needed
+    // this provides a slightly cleaner parent::__construct()
+    protected function beforeMethodCalled() {}
 
     /**
      * This method allows you to load services
@@ -165,15 +168,15 @@ abstract class BaseController
      * to the controller by its key and name.
      *
      * @param string $key
-     * @param string $name
+     * @param null|string $name
      * @return void
      * @throws ServiceNotFound
      */
-    protected function attachService(string $key, string $name): void
+    protected function attachService(string $key, ?string $name = null): void
     {
         // convert the key to lowercase to match the attached services
         // this will throw an exception if the service is not found
-        $this->attachedServices[strtolower($key)] = container()->get($name);
+        $this->attachedServices[strtolower($key)] = container()->get($name ?? $key);
     }
 
     /**
@@ -189,13 +192,13 @@ abstract class BaseController
     public function __get(string $key): mixed
     {
         // convert the key to lowercase to match the attached services
-        $key = strtolower($key);
+        $lowercaseKey = strtolower($key);
 
-        if (!isset($this->attachedServices[$key])) {
+        if (!isset($this->attachedServices[$lowercaseKey])) {
             throw new ServiceNotFound($key);
         }
 
         // return the attached service
-        return $this->attachedServices[$key];
+        return $this->attachedServices[$lowercaseKey];
     }
 }

@@ -129,10 +129,18 @@ class Application
      *
      * @return Application
      */
-    public static function make(): Application
+    public static function make(?array $environmentalFiles = null, ?array $configDirectories = null): Application
     {
         if (!isset(static::$self)) {
             static::$self = new static();
+        }
+
+        if ($environmentalFiles) {
+            static::$self->loadEnvironment(...$environmentalFiles);
+        }
+
+        if ($configDirectories) {
+            static::$self->setConfigDirectories(...$configDirectories);
         }
 
         return static::$self;
@@ -453,8 +461,8 @@ class Application
             unset($_ENV);
 
             // get the list of environmental files to load
-            foreach (func_get_args() as $environmentalFiles) {
-                $this->loadEnvironmentFile($environmentalFiles);
+            foreach (func_get_args() as $environmentalFile) {
+                $this->loadEnvironmentFile($environmentalFile);
             }
 
             // set ENVIRONMENT constant - defaults to production if not set in .env
