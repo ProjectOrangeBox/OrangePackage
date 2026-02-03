@@ -5,7 +5,7 @@ declare(strict_types=1);
 use orange\framework\Input;
 use orange\framework\interfaces\InputInterface;
 
-final class InputTest extends unitTestHelper
+final class InputTest extends UnitTestHelper
 {
     protected $instance;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 use orange\framework\base\ArrayObject;
 use orange\framework\base\SingletonArrayObject;
 
-final class BaseTest extends unitTestHelper
+final class BaseTest extends UnitTestHelper
 {
     public function testArrayObject(): void
     {

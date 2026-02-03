@@ -171,7 +171,7 @@ class Router extends Singleton implements RouterInterface
 
         // let's make sure we set the site url
         if (empty($this->siteUrl)) {
-            throw new InvalidValue('Can not determine site url.');
+            throw new MissingRequired('can\'t determine site url.');
         }
 
         // Set the skip parameter type checking flag

@@ -8,7 +8,7 @@ use orange\framework\Input;
 use orange\framework\Router;
 use orange\framework\exceptions\view\ViewNotFound;
 
-final class ViewerTest extends unitTestHelper
+final class ViewerTest extends UnitTestHelper
 {
     protected $instance;
 

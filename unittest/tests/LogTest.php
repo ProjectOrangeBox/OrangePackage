@@ -5,7 +5,7 @@ declare(strict_types=1);
 use orange\framework\Log;
 use orange\framework\exceptions\IncorrectInterface;
 
-final class LogTest extends unitTestHelper
+final class LogTest extends UnitTestHelper
 {
     protected $instance;
     protected $config = [

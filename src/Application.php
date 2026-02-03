@@ -104,19 +104,17 @@ class Application
 {
     // singleton instance
     protected static Application $self;
-
     // application (this class) config
     protected array $config;
-
     // Dependency Injection Container
     protected ContainerInterface $container;
     // this classes configuration array
     protected array $configDirectories;
-
     // environment variables
     protected array $env = [];
     // captured globals
     protected array $globals = [];
+
     // singleton pattern
     protected function __construct()
     {
@@ -127,7 +125,9 @@ class Application
     /**
      * singleton pattern
      *
-     * @return Application
+      * @param null|array $environmentalFiles
+      * @param null|array $configDirectories
+      * @return Application
      */
     public static function make(?array $environmentalFiles = null, ?array $configDirectories = null): Application
     {
@@ -547,7 +547,7 @@ class Application
     /**
      * Load the environmental files provided
      *
-     * @param array $environmentalFiles
+     * @param array $environmentalFile
      * @return void
      * @throws FileNotFound
      * @throws InvalidConfigurationValue

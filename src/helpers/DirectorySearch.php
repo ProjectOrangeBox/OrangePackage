@@ -160,7 +160,7 @@ class DirectorySearch implements DirectorySearchInterface
      * @throws NotFound
      * @throws DirectoryNotFound
      */
-    public function addDirectory(string $directory, int $pend = null): self
+    public function addDirectory(string $directory, ?int $pend = null): self
     {
         // should we throw an exception?
         $this->ifLockedThrowException();
@@ -196,7 +196,7 @@ class DirectorySearch implements DirectorySearchInterface
      * @throws NotFound
      * @throws DirectoryNotFound
      */
-    public function addDirectories(array $directories, int $pend = null, bool $asBlock = true): self
+    public function addDirectories(array $directories, ?int $pend = null, bool $asBlock = true): self
     {
         $pend = $pend ?? $this->pend;
 

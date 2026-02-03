@@ -6,7 +6,7 @@ use orange\framework\Container;
 use orange\framework\interfaces\ContainerInterface;
 use orange\framework\exceptions\container\ServiceNotFound;
 
-final class ContainerTest extends unitTestHelper
+final class ContainerTest extends UnitTestHelper
 {
     protected $instance;
     protected $services;
@@ -18,7 +18,8 @@ final class ContainerTest extends unitTestHelper
             'cookie' => function (ContainerInterface $container) {
                 return new stdClass();
             },
-            '@cat' => 'foo', // alias of foo
+             // alias of foo
+             '@cat' => 'foo',
         ];
 
         $this->instance = Container::getInstance($this->services);
@@ -96,6 +97,6 @@ final class ContainerTest extends unitTestHelper
     {
         $this->expectException(ServiceNotFound::class);
 
-        $this->assertNull($this->instance->get('bogus service'));
+        $this->instance->get('bogus service');
     }
 }

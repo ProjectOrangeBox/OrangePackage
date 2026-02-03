@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use orange\framework\Data;
 
-final class DataTest extends unitTestHelper
+final class DataTest extends UnitTestHelper
 {
     protected $instance;
 

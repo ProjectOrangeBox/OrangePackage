@@ -9,7 +9,7 @@ use orange\framework\exceptions\router\RouteNotFound;
 use orange\framework\exceptions\router\RouterNameNotFound;
 use orange\framework\Input;
 
-final class RouterTest extends unitTestHelper
+final class RouterTest extends UnitTestHelper
 {
     protected $instance;
     protected $callback = ['\app\controllers\controller', 'index'];
@@ -157,6 +157,6 @@ final class RouterTest extends unitTestHelper
     {
         $this->expectException(MissingRequired::class);
 
-        Router::newInstance(['site url' => null], Input::newInstance([]));
+        Router::newInstance(['site url' => ''], Input::newInstance([]));
     }
 }

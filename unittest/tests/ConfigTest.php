@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use orange\framework\Config;
 
-final class ConfigTest extends unitTestHelper
+final class ConfigTest extends UnitTestHelper
 {
     protected $instance;
 

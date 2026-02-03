@@ -472,8 +472,6 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
-     *
-     *
      * @param string $serviceName
      * @param string $class
      * @return mixed
@@ -498,8 +496,6 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
-     *
-     *
      * @param ReflectionClass $classReflection
      * @param string $fullyQualifiedName
      * @return mixed
@@ -520,8 +516,6 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
-     *
-     *
      * @param ReflectionClass $classReflection
      * @param string $fullyQualifiedName
      * @param string $serviceName
@@ -537,9 +531,9 @@ class Container extends Singleton implements ContainerInterface
         $args = [];
 
         foreach ($classReflection->getConstructor()->getParameters() as $param) {
-            // Get type information
+            // get the argument type
             $type = $param->getType();
-            // Get argument name
+            // get the argument variable name
             $argument = $param->getName();
 
             if (strlen($argument) > 6 && substr($argument, 0, 6) == 'config' && (string)$type == 'array') {
@@ -590,8 +584,6 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
-     *
-     *
      * @param ReflectionClass $classReflection
      * @return ReflectionMethod|null
      */
@@ -609,8 +601,6 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
-     *
-     *
      * @param ReflectionClass $classReflection
      * @param string $fullyQualifiedName
      * @return ReflectionClass

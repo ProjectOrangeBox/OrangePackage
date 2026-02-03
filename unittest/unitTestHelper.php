@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use PHPUnit\Framework\TestCase;
 
-class unitTestHelper extends TestCase
+class UnitTestHelper extends TestCase
 {
     protected $instance;
 
@@ -34,7 +34,7 @@ class unitTestHelper extends TestCase
         $closure($value);
     }
 
-    protected function callMethod(string $method, array $args = null, $instance = null)
+    protected function callMethod(string $method, ?array $args = null, $instance = null)
     {
         $instance = ($instance) ?? $this->instance;
 

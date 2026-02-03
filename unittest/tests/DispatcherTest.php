@@ -10,7 +10,7 @@ use orange\framework\Dispatcher;
 use orange\framework\exceptions\dispatcher\MethodNotFound;
 use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
 
-final class DispatcherTest extends unitTestHelper
+final class DispatcherTest extends UnitTestHelper
 {
     protected $instance;
 

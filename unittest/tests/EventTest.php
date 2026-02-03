@@ -5,7 +5,7 @@ declare(strict_types=1);
 use orange\framework\Event;
 use orange\framework\exceptions\InvalidValue;
 
-final class EventTest extends unitTestHelper
+final class EventTest extends UnitTestHelper
 {
     protected $instance;
 

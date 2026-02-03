@@ -5,7 +5,7 @@ declare(strict_types=1);
 use orange\framework\helpers\DirectorySearch;
 use orange\framework\interfaces\DirectorySearchInterface;
 
-final class DirectorySearchTest extends unitTestHelper
+final class DirectorySearchTest extends UnitTestHelper
 {
     protected $instance = null;
 

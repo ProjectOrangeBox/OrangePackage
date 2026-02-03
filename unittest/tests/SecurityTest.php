@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use orange\framework\Security;
 
-final class SecurityTest extends unitTestHelper
+final class SecurityTest extends UnitTestHelper
 {
     protected $instance;
 
