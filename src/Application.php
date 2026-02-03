@@ -505,7 +505,7 @@ class Application
             $this->configDirectories = $arrayOfConfigDirectories;
             // orange config folder is always checked first
             array_unshift($this->configDirectories, __DIR__ . DIRECTORY_SEPARATOR . 'config');
-        };
+        }
     }
 
     /**
@@ -547,7 +547,7 @@ class Application
     /**
      * Load the environmental files provided
      *
-     * @param array $environmentalFile
+     * @param string $environmentalFile
      * @return void
      * @throws FileNotFound
      * @throws InvalidConfigurationValue

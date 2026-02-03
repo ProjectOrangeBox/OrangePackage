@@ -68,8 +68,8 @@ if (!function_exists('errorHandler')) {
 if (!function_exists('exceptionHandler')) {
     function exceptionHandler(Throwable $exception): void
     {
-        // if error reporting is off DIE HARD with a 500;
-        if (error_reporting() == 0) {
+        // if they are passing a http error already then just let it pass through to the error handler
+        if (!is_a($exception, \orange\framework\exceptions\http\Http::class) && error_reporting() == 0) {
             http_response_code(500);
             exit(1);
         }
