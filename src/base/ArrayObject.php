@@ -20,6 +20,18 @@ class ArrayObject extends PHPArrayObject
     }
 
     /**
+     * add wrapper for new  error when dynamically assigning property
+     *
+     * @param string $name
+     * @param mixed $value
+     * @return void
+     */
+    public function __set(string $name, mixed $value): void
+    {
+        $this[$name] = $value;
+    }
+
+    /**
      * let "some" of the array_ functions work
      *
      * @param string $name
