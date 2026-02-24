@@ -135,7 +135,7 @@ class Input extends Singleton implements InputInterface
         $this->inputStream = $this->config['input'] ?? '';
 
         // detect request body data types and populate $this->request
-        $this->detectRequest($this->request, $this->contentType(), $this->requestMethod(), $this->inputStream, $this->config['request'] ?? []);
+        $this->request = $this->detectRequest($this->contentType(), $this->inputStream);
     }
 
     /**
@@ -301,7 +301,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $type);
 
-        return $asLowercase ? mb_strtolower($type) : strtoupper($type);
+        return $asLowercase ? strtolower($type) : strtoupper($type);
     }
 
     /**
@@ -333,7 +333,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $method);
 
-        return $asLowercase ? mb_strtolower($method) : strtoupper($method);
+        return $asLowercase ? strtolower($method) : strtoupper($method);
     }
 
     /**
@@ -348,7 +348,7 @@ class Input extends Singleton implements InputInterface
         // determine the request type
         if (($this->server('http_x_requested_with', '') == 'xmlhttprequest') || (strpos($this->server('http_accept', ''), 'application/json') !== false)) {
             $requestType = 'ajax';
-        } elseif (mb_strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
+        } elseif (strtolower($this->config['php_sapi'] ?? '') === 'cli' || ($this->config['stdin'] ?? false) === true) {
             $requestType = 'cli';
         } else {
             $requestType = 'html';
@@ -356,7 +356,7 @@ class Input extends Singleton implements InputInterface
 
         logMsg('DEBUG', __METHOD__ . $requestType);
 
-        return $asLowercase ? mb_strtolower($requestType) : strtoupper($requestType);
+        return $asLowercase ? strtolower($requestType) : strtoupper($requestType);
     }
 
     /**
@@ -437,7 +437,7 @@ class Input extends Singleton implements InputInterface
      */
     protected function normalizeServerKey(string $key): string
     {
-        return str_replace('_', ' ', str_replace(['http_', 'server_'], '', mb_strtolower($key)));
+        return str_replace('_', ' ', str_replace(['http_', 'server_'], '', strtolower($key)));
     }
 
     /**
@@ -449,26 +449,20 @@ class Input extends Singleton implements InputInterface
      * @param string $inputStream
      * @return array
      */
-    protected function detectRequest(array &$request, string $contentType, string $requestMethod, string $inputStream, array $posted): void
+    protected function detectRequest(string $contentType, string $inputStream): array
     {
-        // setup a variable to hold the new request
-        $newRequest = null;
+        $request = [];
 
-        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0 && in_array($requestMethod, ['put', 'delete'])) {
+        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0) {
             // try to parse the urlencoded input
-            parse_str($inputStream, $newRequest);
-        } elseif (strpos($contentType, 'application/json') === 0 && in_array($requestMethod, ['post', 'put', 'delete'])) {
+            parse_str($inputStream, $request);
+        } elseif (strpos($contentType, 'application/json') === 0) {
             // try to decode the json input
-            $newRequest = json_decode($inputStream, true);
-        } else {
-            // fail back to what was posted
-            $newRequest = $posted;
+            $request = json_decode($inputStream, true);
         }
 
         // only replace request with newRequest if it is an array
-        if (is_array($newRequest)) {
-            $request = $newRequest;
-        }
+        return is_array($request) ? $request : [];
     }
 
     /**

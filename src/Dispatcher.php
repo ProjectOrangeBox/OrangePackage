@@ -111,7 +111,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
     {
         logMsg('INFO', __METHOD__ . ' request uri ' . ($routeMatched['request uri'] ?? ''));
         logMsg('INFO', __METHOD__ . ' matched uri ' . ($routeMatched['matched uri'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' matched method ' . ($routeMatched['matched method'] ?? ''));
+        logMsg('INFO', __METHOD__ . ' matched method ' . (is_array($routeMatched['matched method']) ? implode('|', $routeMatched['matched method']) : $routeMatched['matched method']));
         logMsg('INFO', __METHOD__ . ' url ' . ($routeMatched['url'] ?? ''));
         logMsg('INFO', __METHOD__ . ' argv ' . json_encode(($routeMatched['argv'] ?? [])));
         logMsg('INFO', __METHOD__ . ' argc ' . ($routeMatched['argc'] ?? ''));

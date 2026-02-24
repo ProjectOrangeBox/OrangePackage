@@ -362,11 +362,11 @@ class Output extends Singleton implements OutputInterface
 
         if ($replace != self::NO) {
             $splitOn = ($replace == self::REPLACEALL) ? '/(:| )/' : '/(;|=|,)/';
-            $prefix = mb_strtolower(preg_split($splitOn, $value)[0]);
+            $prefix = strtolower(preg_split($splitOn, $value)[0]);
             $prefixLength = strlen($prefix);
 
             foreach ($this->headers as $index => $headerValue) {
-                if (substr(mb_strtolower($headerValue), 0, $prefixLength) == $prefix) {
+                if (substr(strtolower($headerValue), 0, $prefixLength) == $prefix) {
                     unset($this->headers[$index]);
                 }
             }
@@ -425,22 +425,19 @@ class Output extends Singleton implements OutputInterface
         logMsg('DEBUG', __METHOD__, ['code' => $code]);
 
         if (is_string($code)) {
-            $code = mb_strtolower($code);
+            $code = strtolower($code);
 
-            if (!array_key_exists($code, $this->responseCodesInternalStringKeys)) {
-                throw new OutputException('Unknown HTTP Status Code ' . $code);
+            if (isset($this->responseCodesInternalStringKeys[$code])) {
+                $this->responseCode = (int)$this->responseCodesInternalStringKeys[$code];
             }
-
-            $code = $this->responseCodesInternalStringKeys[$code];
+        } else {
+            // it is a integer
+            $this->responseCode = $code;
         }
 
-        // test the integer
-        if (!isset($this->config['status codes'][$code])) {
-            throw new OutputException('Unknown HTTP Status Code ' . (string)$code);
+        if ($code > 599 || $code < 100) {
+            $this->responseCode = 500;
         }
-
-        // code is valid integer
-        $this->responseCode = $code;
 
         $this->header($this->getResponseHeader($this->responseCode), self::REPLACEALL, true);
 
