@@ -60,6 +60,17 @@ class ArrayObject extends PHPArrayObject
     }
 
     /**
+     * wrapper to treat like an object
+     *
+     * @param string $name
+     * @return mixed
+     */
+    public function __get(string $name): mixed
+    {
+        return $this[$name] ?? null;
+    }
+
+    /**
      * get with default
      * Returns the value at the specified key if it exists; otherwise, returns the provided default value.
      *
