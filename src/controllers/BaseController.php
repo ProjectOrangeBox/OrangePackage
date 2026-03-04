@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace orange\framework\controllers;
 
-use orange\framework\helpers\DirectorySearch;
-use orange\framework\interfaces\InputInterface;
-use orange\framework\interfaces\ConfigInterface;
-use orange\framework\interfaces\OutputInterface;
-use orange\framework\exceptions\filesystem\FileNotFound;
+use orange\framework\attributes\AttachService;
 use orange\framework\exceptions\container\ServiceNotFound;
+use orange\framework\exceptions\filesystem\FileNotFound;
+use orange\framework\helpers\DirectorySearch;
+use orange\framework\interfaces\ConfigInterface;
+use orange\framework\interfaces\InputInterface;
+use orange\framework\interfaces\OutputInterface;
+use ReflectionClass;
 
 /**
  * this is a user controller that others can extend it is not nessesary but it's nice to put commonly used code here
  */
 abstract class BaseController
 {
+    protected ConfigInterface $config;
+    protected InputInterface $input;
+    protected OutputInterface $output;
+
     /**
      * This array holds the services you want to autoload and attach on instantiation.
      * It allows you to load services that are local to the extending controller.
@@ -60,15 +66,15 @@ abstract class BaseController
     {
         // attach the passed services to the controller
         // this way you can access them like $this->config, $this->input, $this->output, etc.
-        $this->attachedServices['config'] = $config;
-        $this->attachedServices['input'] = $input;
-        $this->attachedServices['output'] = $output;
+        $this->config = $config;
+        $this->input = $input;
+        $this->output = $output;
 
-        // load the services defined in the config
-        $this->loadServices($config->get('application.default services', []));
+        // load the services defined in the config and defined with the #[AttachService] Attribute
+        $this->loadServices($config->get('application.default services', []))->autoAttachService();
 
         // path to the parent directory of the parent class
-        $parentPath = dirname(dirname((new \ReflectionClass(get_class($this)))->getFileName()));
+        $parentPath = dirname(dirname((new ReflectionClass(get_class($this)))->getFileName()));
 
         // try to load (local to extending controller) libraries
         foreach ($this->libraries as $filename) {
@@ -106,7 +112,7 @@ abstract class BaseController
         }
 
         // if we loaded the view service
-        if (method_exists($this->view, 'search')) {
+        if (isset($this->view) && method_exists($this->view, 'search')) {
             // then attach the local to extending controller view folders if available
             foreach (['/', '/../', '/../../', '/../../../'] as $parents) {
                 if ($addPath = realpath($parentPath . $parents . 'views')) {
@@ -200,5 +206,22 @@ abstract class BaseController
 
         // return the attached service
         return $this->attachedServices[$lowercaseKey];
+    }
+
+    protected function autoAttachService(): self
+    {
+        $reflection = new ReflectionClass(get_class($this));
+
+        foreach ($reflection->getProperties() as $property) {
+            $attribute = $property->getAttributes(AttachService::class);
+
+            if (isset($attribute[0])) {
+                $property = $property->getName();
+
+                $this->$property = container()->get($attribute[0]->getArguments()[0]);
+            }
+        }
+
+        return $this;
     }
 }

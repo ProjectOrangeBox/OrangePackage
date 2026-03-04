@@ -4,19 +4,18 @@ declare(strict_types=1);
 
 /**
  * ONLY USE IN DEVELOPMENT
- * in your config/routes.php
- * replace
- * 'routes' => [...]
- * with
- * 'routes' => RouterDetector::search([__ROOT__ . '/application/main',...]),
- *
- * If you want to generate a complete route congif array for production use export
- * to export the array and paste the output into 'routes' => <here>
  */
 
 class RouterDetector
 {
-    static public function search(array $paths): array
+    /**
+     * we will use this class to scan the application for route attributes
+     * and build the routes array that is used in the Router class
+     *
+     * @param array $paths
+     * @return array
+     */
+    static public function detect(array $paths): array
     {
         if (ENVIRONMENT != 'development') {
             die('The ' . __CLASS__ . ' should only be used in development. You can use the static method export to get the current array');
@@ -25,159 +24,163 @@ class RouterDetector
         $routes = [];
 
         foreach ($paths as $path) {
-            foreach (static::rglob($path, '*.php') as $file) {
-                if ($tokens = static::token(file_get_contents($file))) {
-                    foreach ($tokens as $token) {
-                        $values = [];
-
-                        foreach ($token['attr'] as $key => $value) {
-                            $values[$key] = $value;
-                        }
-
-                        $routes[] = $values;
-                    }
-                }
+            // we need to recursively scan the directory for php files
+            foreach (new RegexIterator(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($path)), '/^.+\.' . preg_quote('php') . '$/i', RegexIterator::GET_MATCH) as $file) {
+                // we need to scan the file for route attributes
+                static::scan($routes, $file[0]);
             }
         }
 
         return $routes;
     }
 
+    /**
+     * echo the formatted routes array
+     *
+     * @param array $paths
+     * @return void
+     */
     static public function export(array $paths): void
     {
-        echo static::shorthand_var_export(static::search($paths), true);
+        // we will just echo the formatted routes array
+        echo static::format(static::detect($paths));
     }
 
-    static protected function rglob($path = '', $pattern = '*', $flags = 0)
+    /**
+     * read the file and look for the namespace, class and route attributes
+     * use regular expressions to find the namespace, class and route attributes
+     * build the routes array as we go and add it to the main routes array
+     * only look for public functions that have a route attribute
+     * use the line number to look for the public function after we find a route attribute
+     * use str_getcsv to parse the route attribute parameters, this will handle quoted strings and commas correctly
+     * need to add two empty values to the end of the array to prevent undefined offset errors when we try to access the parameters
+     * need to convert the http methods to uppercase and split them into an array if they contain a pipe character
+     *
+     * @param array &$routes
+     * @param string $file
+     * @return void
+     */
+    static protected function scan(array &$routes, string $file): void
     {
-        $paths = glob($path . '*', GLOB_MARK | GLOB_ONLYDIR | GLOB_NOSORT);
-        $files = glob($path . $pattern, $flags);
+        // we need to read the file into an array of lines
+        $source = file($file);
 
-        foreach ($paths as $path) {
-            $files = array_merge($files, static::rglob($path, $pattern, $flags));
-        }
-
-        return $files;
-    }
-
-    static protected function token(string $source): array|false
-    {
-        $collected = [];
-        $tokens = null;
+        // we need to keep track of the current namespace and class so we can build the callback
         $namespace = '';
-        $classname = '';
-        $comment = '';
-        $function = '';
+        $class = '';
 
-        try {
-            $tokens = token_get_all($source, TOKEN_PARSE);
-        } catch (Throwable $e) {
-            return false;
-        }
+        foreach ($source as $lineNumber => $line) {
+            // we need to trim the line to remove any leading or trailing whitespace
+            $line = trim($line);
 
-        if ($tokens) {
-            foreach ($tokens as $index => $token) {
-                if (is_array($token)) {
-                    switch (token_name($token[0])) {
-                        case 'T_NAMESPACE':
-                            $namespace = $tokens[$index + 2][1];
-                            break;
-                        case 'T_CLASS':
-                            $classname = $tokens[$index + 2][1];
-                            break;
-                        case 'T_COMMENT':
-                            // these ARE NOT real PHP 8 attributes they only "look" like them
-                            // comment must start with "# [route("
-                            if (substr(strtolower(trim($token[1])), 0, 9) == '# [route(') {
-                                if (token_name($tokens[$index + 2][0]) == 'T_PUBLIC') {
-                                    if (token_name($tokens[$index + 4][0]) == 'T_FUNCTION') {
-                                        $comment = $token[1];
-                                        $function = $tokens[$index + 6][1];
-                                        $fullclass = chr(92) . $namespace . chr(92) . $classname;
-                                        $attr = static::splitAttr($comment, compact(['namespace', 'classname', 'fullclass', 'comment', 'function']));
-                                        $attr['callback'] = [$fullclass, $function];
+            if (!empty($line)) {
+                // we are looking for the namespace, class and route attributes
+                if (preg_match('/namespace\s+(.*);/', $line, $matches, PREG_OFFSET_CAPTURE, 0)) {
+                    $namespace = $matches[1][0];
+                }
+                // we are only interested in public functions, so we will only look for the route attribute if we find a public function
+                if (preg_match('/class\s+([^ ]*)\s+(.*)/', $line, $matches, PREG_OFFSET_CAPTURE, 0)) {
+                    $class = $matches[1][0];
+                }
+                // #[Route('get|post', '/errors')]
+                if (preg_match('/#\[Route\((.*)\)\]/', $line, $matches, PREG_OFFSET_CAPTURE, 0)) {
+                    // we have a route attribute, so we need to parse the parameters and build the route array
+                    $route = [];
 
-                                        $collected[] = [
-                                            'namespace' => $namespace,
-                                            'classname' => $classname,
-                                            'fullclass' => $fullclass,
-                                            'comment' => $comment,
-                                            'function' => $function,
-                                            'attr' => $attr,
-                                        ];
-                                    }
-                                }
-                            }
-                            break;
+                    // we need to add two empty values to the end of the array to prevent undefined offset errors
+                    list($httpMethods, $route['url'], $route['name']) = str_getcsv(str_replace('"', "'", $matches[1][0]) . ',,', ',', chr(39));
+
+                    // if we have a http method, we need to add it to the route array
+                    if (!empty($httpMethods)) {
+                        // we need to convert to uppercase
+                        $route['method'] = strtoupper($httpMethods);
+
+                        // do we need to convert to an array?
+                        if (strpos($route['method'], '|') > 0) {
+                            // we need to split the string into an array
+                            $route['method'] = explode('|', $route['method']);
+                        }
+
+                        // ['method' => '*', 'url' => '/', 'callback' => [\orange\framework\controllers\HomeController::class, 'index'], 'name' => 'home'],
+                        if (preg_match('/public\s+function\s+([^\(]*)(.*)/', $source[$lineNumber + 1], $matches, PREG_OFFSET_CAPTURE, 0)) {
+                            // we have a valid route, so we can add it to the routes array
+                            $route['callback'] = [chr(92) . $namespace . chr(92) . $class, $matches[1][0]];
+                        } else {
+                            // we don't have a valid route, so we can skip it
+                            unset($route['name']);
+                            unset($route['url']);
+                            unset($route['method']);
+                        }
+                    }
+
+                    // remove empty values
+                    $route = array_filter($route);
+
+                    // only add if we have a valid route
+                    if (!empty($route)) {
+                        $routes[] = $route;
                     }
                 }
             }
         }
-
-        return count($collected) ? $collected : false;
     }
 
-    static protected function splitAttr(string $comment): array
+    /**
+     * we need to format the routes array into a string that can be used in the export method
+     *
+     * @param array $routes
+     * @return string
+     */
+    static protected function format(array $routes): string
     {
-        $comment = trim($comment);
+        $output = '';
+        $t = chr(39);
 
-        $x = strpos($comment, '(');
+        // ['method' => '*', 'url' => '/', 'callback' => [\orange\framework\controllers\HomeController::class, 'index'], 'name' => 'home'],
+        foreach ($routes as $route) {
+            $line = '';
 
-        if ($x) {
-            $comment = substr($comment, $x  + 1);
+            if (isset($route['method'])) {
+                $line .= $t . 'method' . $t . ' => ';
+
+                if (is_array($route['method'])) {
+                    $line .= '[';
+
+                    foreach ($route['method'] as $m) {
+                        $line .= $t . $m . $t . ',';
+                    }
+
+                    $line = rtrim($line, ',');
+
+                    $line .= ']';
+                } else {
+                    $line .= $t . $route['method'] . $t;
+                }
+
+                $line .= ', ';
+            }
+
+            if (isset($route['url'])) {
+                $line .= $t . 'url' . $t . ' => ' . $t . $route['url'] . $t . ', ';
+            }
+
+            if (isset($route['callback'])) {
+                $line .= $t . 'callback' . $t . ' => [';
+
+                $line .= $route['callback'][0] . '::class, ' . $t . $route['callback'][1] . $t;
+
+                $line .= '], ';
+            }
+
+            if (isset($route['name'])) {
+                $line .= $t . 'name' . $t . ' => ' . $t . $route['name'] . $t;
+            }
+
+            $line = trim($line, ', ');
+
+            $output .= '[' . $line . '],' . PHP_EOL;
         }
 
-        $x = strrpos($comment, ')');
-
-        if ($x) {
-            $comment = substr($comment, 0, $x);
-        }
-
-        $args = str_getcsv($comment);
-
-        $return = [];
-
-        if (!empty($args[0])) {
-            $return['method'] = trim($args[0]);
-        }
-        if (!empty($args[1])) {
-            $return['url'] = trim($args[1]);
-        }
-        if (!empty($args[2])) {
-            $return['name'] = trim($args[2]);
-        }
-
-        return $return;
-    }
-
-    static protected function shorthand_var_export($expression, $return = false)
-    {
-        // Capture the standard var_export output
-        $export = var_export($expression, true);
-
-        // Define patterns for replacement
-        $patterns = [
-            // Replace "array (" with "["
-            "/array \(/" => '[',
-            // Replace closing ")" at the end of a line with "]"
-            "/^([ ]*)\)(,?)$/m" => '$1]$2',
-            // Optional: Remove sequential numeric keys (0 =>, 1 =>, etc.)
-            // This is a more complex regex and might need adjustment for deeply nested arrays
-            // A simple approach is to rely on PHP's default behavior for sequential arrays
-        ];
-
-        // Perform initial replacements for short array syntax
-        $output = preg_replace(array_keys($patterns), array_values($patterns), $export);
-
-        // Further refinement to remove keys for simple sequential arrays (0 => 1, 1 => 2, becomes [1, 2])
-        // This is generally not robust for all mixed-key scenarios, but works for purely numeric, sequential arrays.
-        $output = preg_replace('/(\[)\s*(\d+\s*=>\s*)/', '[', $output);
-        $output = preg_replace('/,\s*(\d+\s*=>\s*)/', ', ', $output);
-
-        if ($return) {
-            return $output;
-        } else {
-            echo $output;
-        }
+        return '[' . PHP_EOL . $output . '],' . PHP_EOL;
     }
 }

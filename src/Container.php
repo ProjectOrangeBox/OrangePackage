@@ -5,19 +5,16 @@ declare(strict_types=1);
 namespace orange\framework;
 
 use Closure;
-use ReflectionClass;
-use ReflectionMethod;
-use ReflectionException;
+use orange\framework\attributes\AutoWire;
 use orange\framework\base\Singleton;
-use orange\framework\exceptions\NotFound;
-use orange\framework\exceptions\InvalidValue;
 use orange\framework\base\SingletonArrayObject;
-use orange\framework\traits\ConfigurationTrait;
-use orange\framework\interfaces\ContainerInterface;
-use orange\framework\exceptions\container\ServiceNotFound;
-use orange\framework\exceptions\container\UnableToResolve;
 use orange\framework\exceptions\container\FailedToAutoWire;
-use orange\framework\exceptions\container\ConstructorNotPublic;
+use orange\framework\exceptions\container\ServiceNotFound;
+use orange\framework\exceptions\InvalidValue;
+use orange\framework\exceptions\NotFound;
+use orange\framework\interfaces\ContainerInterface;
+use orange\framework\traits\ConfigurationTrait;
+use ReflectionClass;
 
 /**
  * Overview of Container.php
@@ -163,19 +160,9 @@ class Container extends Singleton implements ContainerInterface
             case self::AUTOWIRECLASS:
                 // If this is a Class Name then try to autowire the arguments
                 $service = $this->autoWire($normalizedName, $this->registeredServices[$normalizedName][self::REFERENCE]);
-                // Convert to singleton if necessary
-                $this->convertToSingleton($normalizedName, $service);
                 break;
             case self::CLOSURE:
-                // Call closure passing the container as the argument
-                $serviceReference = $this->registeredServices[$normalizedName][self::REFERENCE];
-
-                $service = $serviceReference($this);
-                // if it is an object
-                if (is_object($service)) {
-                    // Convert to singleton if necessary
-                    $this->convertToSingleton($normalizedName, $service);
-                }
+                $service = $this->callClosure($normalizedName, $this->registeredServices[$normalizedName][self::REFERENCE]);
                 break;
             default:
                 // Handle unknown service types
@@ -214,9 +201,9 @@ class Container extends Singleton implements ContainerInterface
         if (substr($serviceName, 0, 1) == '@') {
             // If it service name starts with @, it is an alias
             $this->addAlias(substr($serviceName, 1), $arg);
-        } elseif (is_string($arg) && substr($arg, 0, 1) == '*') {
+        } elseif (substr($serviceName, 0, 1) == '^') {
             // if the service value starts with * it's a fully qualified class name and should be auto wired
-            $this->addAutoWireClass($serviceName, substr($arg, 1));
+            $this->addAutoWireClass(substr($serviceName, 1), $arg);
         } elseif ($arg instanceof Closure) {
             // If it is a closure add it as a closure service all closures get a reference to this container passed as the only argument
             $this->addClosure($serviceName, $arg);
@@ -432,6 +419,29 @@ class Container extends Singleton implements ContainerInterface
     }
 
     /**
+     * This method is responsible for calling a closure service and handling its result.
+     * It executes the closure, passing the container as an argument, and then checks if the
+     * result is an object. If it is, it checks if it should be converted to a singleton and does so if necessary.
+     * 
+     * @param string $normalizedName 
+     * @param Closure $closure 
+     * @return mixed 
+     */
+    protected function callClosure(string $normalizedName, Closure $closure): mixed
+    {
+        // Call closure passing the container as the argument
+        $service = $closure($this);
+
+        // if it is an object
+        if (is_object($service)) {
+            // Convert to singleton if necessary
+            $this->convertToSingleton($normalizedName, $service);
+        }
+
+        return $service;
+    }
+
+    /**
      * Resolves an alias to its final reference.
      *
      * @param string $normalizedName The initial normalized name.
@@ -469,150 +479,6 @@ class Container extends Singleton implements ContainerInterface
         foreach ($many as $serviceName => $args) {
             $this->set($serviceName, $args);
         }
-    }
-
-    /**
-     * @param string $serviceName
-     * @param string $class
-     * @return mixed
-     * @throws FailedToAutoWire
-     */
-    protected function autoWire(string $serviceName, string $class): mixed
-    {
-        $service = null;
-
-        $classReflection = new ReflectionClass($class);
-
-        $constructor = $classReflection->getConstructor();
-
-        try {
-            // most basic no arguments needed
-            $service = ($constructor === null || $constructor->getNumberOfParameters() === 0) ? $this->withoutArguments($classReflection, $class) : $this->withArguments($classReflection, $class, $serviceName);
-        } catch (ReflectionException $e) {
-            throw new FailedToAutoWire($class . ' ' . $e->getMessage());
-        }
-
-        return $service;
-    }
-
-    /**
-     * @param ReflectionClass $classReflection
-     * @param string $fullyQualifiedName
-     * @return mixed
-     * @throws ReflectionException
-     * @throws ConstructorNotPublic
-     */
-    protected function withoutArguments(ReflectionClass $classReflection, string $fullyQualifiedName): mixed
-    {
-        // try getInstance first
-        if ($getInstanceMethod = $this->hasGetInstance($classReflection)) {
-            $instance = $getInstanceMethod->invoke(null);
-        } else {
-            // then the constructor
-            $instance = $this->constructorIsPublic($classReflection, $fullyQualifiedName)->newInstance();
-        }
-
-        return $instance;
-    }
-
-    /**
-     * @param ReflectionClass $classReflection
-     * @param string $fullyQualifiedName
-     * @param string $serviceName
-     * @return mixed
-     * @throws ServiceNotFound
-     * @throws ReflectionException
-     * @throws UnableToResolve
-     * @throws ConstructorNotPublic
-     */
-    protected function withArguments(ReflectionClass $classReflection, string $fullyQualifiedName, string $serviceName): mixed
-    {
-        // more complex we need to collect arguments
-        $args = [];
-
-        foreach ($classReflection->getConstructor()->getParameters() as $param) {
-            // get the argument type
-            $type = $param->getType();
-            // get the argument variable name
-            $argument = $param->getName();
-
-            if (strlen($argument) > 6 && substr($argument, 0, 6) == 'config' && (string)$type == 'array') {
-                // This is special to get config service values
-                $args[] = $this->get('config')->get(lcfirst(substr($argument, 6)));
-            } elseif ($this->has($fullyQualifiedName . '.' . $argument)) {
-                // is there a fully named space class + argument match?
-                // Tester::class . '.foobar' => 'Johnny Appleseed',
-                $args[] = $this->get($fullyQualifiedName . '.' . $argument);
-            } elseif ($this->has('$' . $fullyQualifiedName . '.' . $argument)) {
-                // is there a $fully named space class + argument match?
-                // $Tester::class . '.foobar' => 'Johnny Appleseed',
-                $args[] = $this->get('$' . $fullyQualifiedName . '.' . $argument);
-            } elseif ($this->has($serviceName . '.' . $argument)) {
-                // is there a service name + argument match?
-                // 'tester.man' => 14,
-                $args[] = $this->get($serviceName . '.' . $argument);
-            } elseif ($this->has('$' . $serviceName . '.' . $argument)) {
-                // is there a $service name + argument match?
-                // '$tester.man' => 14,
-                $args[] = $this->get('$' . $serviceName . '.' . $argument);
-            } elseif ($this->has($argument)) {
-                // is there a service that matches the argument name?
-                // 'person' => 'Joey Myers'
-                $args[] = $this->get($argument);
-            } elseif ($param->isOptional()) {
-                // is this argument optional?
-                $args[] = $param->getDefaultValue() ?? null;
-            } elseif ($type->allowsNull()) {
-                // does this argument allow null?
-                $args[] = null;
-            } else {
-                $hint = $type ? (string)$type : 'mixed';
-
-                throw new UnableToResolve('$' . $argument . ' (' . $hint . ') for ' . $fullyQualifiedName . '::__construct().');
-            }
-        }
-
-        // try getInstance first
-        if ($getInstanceMethod = $this->hasGetInstance($classReflection)) {
-            $instance = $getInstanceMethod->invokeArgs(null, $args);
-        } else {
-            // then the constructor
-            $instance =  $this->constructorIsPublic($classReflection, $fullyQualifiedName)->newInstanceArgs($args);
-        }
-
-        return $instance;
-    }
-
-    /**
-     * @param ReflectionClass $classReflection
-     * @return ReflectionMethod|null
-     */
-    protected function hasGetInstance(ReflectionClass $classReflection): ReflectionMethod|null
-    {
-        try {
-            // Try to get the getInstance method
-            $getInstanceMethod = $classReflection->getMethod('getInstance');
-        } catch (ReflectionException $e) {
-            // If the method doesn't exist, we'll just set it to null
-            $getInstanceMethod = null;
-        }
-
-        return $getInstanceMethod;
-    }
-
-    /**
-     * @param ReflectionClass $classReflection
-     * @param string $fullyQualifiedName
-     * @return ReflectionClass
-     * @throws ConstructorNotPublic
-     */
-    protected function constructorIsPublic(ReflectionClass $classReflection, string $fullyQualifiedName): ReflectionClass
-    {
-        if (!$classReflection->getConstructor()->isPublic()) {
-            throw new ConstructorNotPublic($fullyQualifiedName);
-        }
-
-        return $classReflection;
     }
 
     /**
@@ -657,5 +523,90 @@ class Container extends Singleton implements ContainerInterface
         if ($this->isSingleton($service)) {
             $this->addValue($serviceName, $service);
         }
+    }
+
+    /**
+     * This method uses reflection to automatically resolve the dependencies of a class and create an instance of it.
+     * It checks the constructor for AutoWire attributes and resolves the required services from the container.
+     * If the class has a public constructor, it uses that. If it has a public static getInstance method, it uses that instead.
+     * If neither is available, it throws an exception.
+     * The resolved instance is returned, and if it is a singleton, it will be stored in the container for future use.
+     * This allows for automatic dependency injection without needing to manually specify how to create each service.
+     * Example usage:
+     * If you have a class like this:
+     * class MyService {
+     *     #[AutoWire('logger')]
+     *     public function __construct(protected Logger $logger) {
+     *       ...
+     *     }
+     * }
+     * Then you can register it in the container like this:
+     * $container->set('^myService', \MyService::class);
+     * And when you retrieve it:
+     * $service = $container->get('myService');
+     *
+     * @param string $fullyQualifiedClass
+     * @return mixed
+     * @throws FailedToAutoWire
+     * @throws ServiceNotFound
+     */
+    protected function autoWire(string $normalizedName, string $fullyQualifiedClass): mixed
+    {
+        // Use reflection to analyze the class and its constructor
+        $classReflection = new ReflectionClass($fullyQualifiedClass);
+
+        // This will hold the arguments to pass to the constructor or getInstance method
+        $args = [];
+
+        // These will hold the reflection methods if they exist
+        $reflectionConstructMethod = null;
+        $reflectionGetInstanceMethod = null;
+
+        // Check if the class has a constructor and if it does, check for AutoWire attributes
+        if ($classReflection->hasMethod('__construct')) {
+            // If the class has a constructor, we will check for AutoWire attributes to determine what services to inject
+            $reflectionConstructMethod = $classReflection->getMethod('__construct');
+
+            // Loop through all AutoWire attributes on the constructor and resolve the corresponding services from the container
+            foreach ($reflectionConstructMethod->getAttributes(AutoWire::class) as $attribute) {
+                // try to get services - this can also throw exceptions
+                $args[] = $this->get($attribute->getArguments()[0]);
+            }
+
+            // If the constructor is public, we will use it to create the instance
+            if (!$reflectionConstructMethod->isPublic()) {
+                // If the constructor is not public, we cannot use it to create the instance, so we will set it to null and check for a getInstance method instead
+                $reflectionConstructMethod = null;
+            }
+        }
+
+        // If the class does not have a public constructor, we will check if it has a public static getInstance method that we can use instead
+        if ($reflectionConstructMethod == null && $classReflection->hasMethod('getInstance')) {
+            // If the class has a getInstance method, we will check for AutoWire attributes on it to determine what services to inject
+            $reflectionGetInstanceMethod = $classReflection->getMethod('getInstance');
+            
+            // If getInstance is public, we will use it to create the instance
+            if (!$reflectionGetInstanceMethod->isPublic()) {
+                // If the getInstance method is not public, we cannot use it to create the instance, so we will set it to null
+                $reflectionGetInstanceMethod = null;
+            }
+        }
+
+        if ($reflectionConstructMethod) {
+            // use the constructor to create the instance, passing in the resolved services as arguments
+            $service = $classReflection->newInstanceArgs($args);
+        } elseif ($reflectionGetInstanceMethod) {
+            // Use the public static getInstance method to create the instance, passing in the resolved services as arguments
+            $service =  $reflectionGetInstanceMethod->invokeArgs(null, $args);
+        } else {
+            // If the class does not have a public constructor or a public static getInstance method, we cannot create an instance of it and we will throw an exception
+            throw new FailedToAutoWire($fullyQualifiedClass . ' could not find __construct or getInstance');
+        }
+
+        // Convert to singleton if necessary
+        $this->convertToSingleton($normalizedName, $service);
+
+        // return service
+        return $service;
     }
 }

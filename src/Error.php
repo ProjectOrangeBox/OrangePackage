@@ -213,8 +213,8 @@ class Error extends Singleton
 
             // if the thrown exceptions error code
             // is great than 0 then use that as the code
-            if ($thrown->getCode() > 0) {
-                $this->code = $thrown->getCode();
+            if ((int)$thrown->getCode() > 0) {
+                $this->code = (int)$thrown->getCode();
             }
 
             // if the thrown exception has the method getHttpCode

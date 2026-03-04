@@ -32,6 +32,17 @@ class ArrayObject extends PHPArrayObject
     }
 
     /**
+     * wrapper to treat like an object
+     *
+     * @param string $name
+     * @return mixed
+     */
+    public function __get(string $name): mixed
+    {
+        return $this[$name] ?? null;
+    }
+
+    /**
      * let "some" of the array_ functions work
      *
      * @param string $name
