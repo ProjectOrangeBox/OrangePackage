@@ -135,7 +135,7 @@ class Input extends Singleton implements InputInterface
         $this->inputStream = $this->config['input'] ?? '';
 
         // detect request body data types and populate $this->request
-        $this->request = $this->detectRequest($this->contentType(), $this->inputStream);
+        $this->request = $this->detectRequest($this->contentType(), $this->inputStream, $this->request);
     }
 
     /**
@@ -441,28 +441,39 @@ class Input extends Singleton implements InputInterface
     }
 
     /**
-     * Parse input stream for PUT/DELETE with urlencoded or JSON bodies
+     * Parse input stream based on the content type sent
      * populates $this->request accordingly
      * called from constructor
      *
-     * @param array $posted
+     * @param string $contentType
      * @param string $inputStream
+     * @param array $postedRequest
      * @return array
      */
-    protected function detectRequest(string $contentType, string $inputStream): array
+    protected function detectRequest(string $contentType, string $inputStream, array $postedRequest): array
     {
-        $request = [];
-
-        if (strpos($contentType, 'application/x-www-form-urlencoded') === 0) {
-            // try to parse the urlencoded input
+        if (strpos($contentType, 'multipart/form-data', 0) !== false) {
+            // use $_POST
+            $request = $postedRequest;
+            // files in $_FILES
+        } elseif (strpos($contentType, 'application/x-www-form-urlencoded', 0) !== false) {
+            // use stream
             parse_str($inputStream, $request);
-        } elseif (strpos($contentType, 'application/json') === 0) {
-            // try to decode the json input
+            // no files attached
+        } elseif (strpos($contentType, 'text/plain', 0) !== false) {
+            // use raw stream
+            $request = $inputStream;
+            // no files attached
+        } elseif (strpos($contentType, 'application/json', 0) !== false) {
+            // use stream and convert to json
             $request = json_decode($inputStream, true);
+            // no files attached
+        } else {
+            // fall back to what was sent in
+            $request = $postedRequest;
         }
 
-        // only replace request with newRequest if it is an array
-        return is_array($request) ? $request : [];
+        return $request;
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 return [
+    'auto detect accepts type' => true,
     'contentType' => 'text/html',
     'charSet' => 'utf-8',
     'language' => 'en',

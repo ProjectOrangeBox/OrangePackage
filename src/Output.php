@@ -146,25 +146,34 @@ class Output extends Singleton implements OutputInterface
     {
         logMsg('INFO', __METHOD__);
 
+        // merge the provided config with the default config
         $this->config = $this->mergeConfigWith($config);
+
+        // we need the input for things like force https and detecting accepts type
         $this->input = $input;
 
+        // if force https is enabled in the config then we need to check if the request is https and if not redirect to the https version of the url
         if ($this->config['force https']) {
             $this->forceHttps();
         }
 
+        // initialize properties
         $this->output = '';
         $this->headers = [];
+        // create a mapping of string keys to response codes for easy lookup
         $this->responseCodesInternalStringKeys = array_change_key_case(array_flip($this->config['status codes']), CASE_LOWER);
         $this->mimes = $this->config['mimes'] ?? [];
 
+        // set the default response code
         $this->responseCode($this->responseCode);
-        $this->contentType($this->config['contentType']);
+        // set the default content type and charset based on config and auto-detection
+        $this->detectAcceptsType($this->config['contentType']);
         $this->charSet($this->config['charSet']);
     }
 
     public function __toString(): string
     {
+        // when the object is treated as a string, return the output content
         return $this->output;
     }
 
@@ -207,6 +216,7 @@ class Output extends Singleton implements OutputInterface
     public function flushAll(): self
     {
         logMsg('INFO', __METHOD__);
+
         return $this->flushHeaders()->flush();
     }
 
@@ -241,7 +251,9 @@ class Output extends Singleton implements OutputInterface
     public function flush(): self
     {
         logMsg('INFO', __METHOD__);
+
         $this->output = '';
+
         return $this;
     }
 
@@ -454,6 +466,27 @@ class Output extends Singleton implements OutputInterface
         logMsg('INFO', __METHOD__);
 
         return $this->responseCode;
+    }
+
+    /**
+     * Detects the appropriate response type based on the client's Accept header and sets the Content-Type accordingly.
+     *
+     * @param string $responseType 
+     * @return void 
+     */
+    protected function detectAcceptsType(string $responseType)
+    {
+        if ($this->config['auto detect accepts type']) {
+            $accepts = $this->input->header('accept');
+
+            if (strpos($accepts, 'application/json', 0) !== false || strpos($accepts, 'text/javascript', 0) !== false) {
+                $responseType = 'application/json';
+            } elseif (strpos($accepts, 'text/html', 0) !== false || strpos($accepts, 'application/xhtml+xml', 0) !== false) {
+                $responseType = 'text/html';
+            }
+        }
+
+        $this->contentType($responseType);
     }
 
     /**

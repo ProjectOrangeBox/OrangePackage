@@ -59,7 +59,7 @@ return [
     'input' => fn(ContainerInterface $container): InputInterface => Input::getInstance($container->config->input),
     'output' => fn(ContainerInterface $container): OutputInterface => Output::getInstance($container->config->output, $container->input),
     'router' => fn(ContainerInterface $container): RouterInterface => Router::getInstance($container->config->routes, $container->input),
-    'dispatcher' => fn(ContainerInterface $container): DispatcherInterface => Dispatcher::getInstance($container),
-    'view' => fn(ContainerInterface $container): ViewInterface => View::getInstance($container->config->view, $container->data, $container->router),
     'data' => fn(ContainerInterface $container): DataInterface => Data::getInstance($container->config->data),
+    'view' => fn(ContainerInterface $container): ViewInterface => View::getInstance($container->config->view, $container->data, $container->router),
+    'dispatcher' => fn(ContainerInterface $container): DispatcherInterface => Dispatcher::getInstance($container),
 ];

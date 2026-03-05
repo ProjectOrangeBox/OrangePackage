@@ -125,9 +125,9 @@ class Application
     /**
      * singleton pattern
      *
-      * @param null|array $environmentalFiles
-      * @param null|array $configDirectories
-      * @return Application
+     * @param null|array $environmentalFiles
+     * @param null|array $configDirectories
+     * @return Application
      */
     public static function make(?array $environmentalFiles = null, ?array $configDirectories = null): Application
     {
@@ -414,6 +414,7 @@ class Application
      */
     public function setGlobals(array $globals = []): void
     {
+        // this only allow these to be set once!
         if (empty($this->globals)) {
             $this->globals = array_replace([
                 'query' => $_GET,
@@ -442,6 +443,9 @@ class Application
      */
     public function fromGlobals(): array
     {
+        // let's make sure this are filled in
+        $this->setGlobals();
+
         return $this->globals;
     }
 
