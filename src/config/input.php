@@ -2,4 +2,6 @@
 
 declare(strict_types=1);
 
-return \orange\framework\Application::get()->fromGlobals();
+use orange\framework\Input;
+
+return Input::fromGlobals();

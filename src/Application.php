@@ -67,21 +67,13 @@ use orange\framework\exceptions\config\ConfigFileDidNotReturnAnArray;
  *
  * ⸻
  *
- * 4. Globals Handling
- *
- * Provides an abstraction over PHP superglobals ($_POST, $_SERVER, etc.) through:
- *     •  fromGlobals($key) – fetches a specific global or all.
- *     •  setGlobals($globals) – allows overriding or adding globals.
- *
- * ⸻
- *
- * 5. Error & Exception Handling
+ * 4. Error & Exception Handling
  *     •  In preContainer(), if user-defined errorHandler / exceptionHandler exist, they are registered.
  *     •  Ensures errors and exceptions are centrally managed.
  *
  * ⸻
  *
- * 6. Extensibility Hooks
+ * 5. Extensibility Hooks
  *     •  preContainer() – allows adding helpers, error handlers, constants before container setup.
  *     •  postContainer() – injects application config values into the container.
  *     •  Can be extended to override behavior without changing core.
@@ -112,8 +104,6 @@ class Application
     protected array $configDirectories;
     // environment variables
     protected array $env = [];
-    // captured globals
-    protected array $globals = [];
 
     // singleton pattern
     protected function __construct()
@@ -253,9 +243,6 @@ class Application
 
         // switch to root
         chdir(__ROOT__);
-
-        // set the globals
-        $this->setGlobals();
 
         // try to setup the environment if it hasn't been loaded already
         // this also sets the ENVIRONMENT constant
@@ -404,49 +391,6 @@ class Application
     public function env(string $key, mixed $default = null): mixed
     {
         return $this->env[$key] ?? $default;
-    }
-
-    /**
-     * Set the Application globals array
-     *
-     * @param array $userGlobals
-     * @return void
-     */
-    public function setGlobals(array $globals = []): void
-    {
-        // this only allow these to be set once!
-        if (empty($this->globals)) {
-            $this->globals = array_replace([
-                'query' => $_GET,
-                'request' => $_POST,
-                'server' => $_SERVER,
-                'cookie' => $_COOKIE,
-                'files' => $_FILES,
-                'php_sapi' => PHP_SAPI, // string
-                'stdin' => defined('STDIN'), // boolean
-                'input' => file_get_contents('php://input'), // string
-            ], $globals);
-
-            // unset for security
-            unset($_GET);
-            unset($_POST);
-            unset($_SERVER);
-            unset($_COOKIE);
-            unset($_FILES);
-        }
-    }
-
-    /**
-     * Get the Application globals array
-     *
-     * @return array
-     */
-    public function fromGlobals(): array
-    {
-        // let's make sure this are filled in
-        $this->setGlobals();
-
-        return $this->globals;
     }
 
     /**

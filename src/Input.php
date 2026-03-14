@@ -409,6 +409,54 @@ class Input extends Singleton implements InputInterface
     }
 
     /**
+     * Set the Application globals array
+     *
+     * @param array $userGlobals
+     * @return array
+     */
+    public static function setGlobals(array $globals = []): array
+    {
+        // only instance of globals
+        static $staticGlobals = [];
+
+        // this only allow these to be set once!
+        if (empty($staticGlobals)) {
+            $staticGlobals = array_replace([
+                'query' => $_GET,
+                'request' => $_POST,
+                'server' => $_SERVER,
+                'cookie' => $_COOKIE,
+                'files' => $_FILES,
+                'php_sapi' => PHP_SAPI, // string
+                'stdin' => defined('STDIN'), // boolean
+                'input' => file_get_contents('php://input'), // string
+            ], $globals);
+
+            // unset for security
+            unset($_GET);
+            unset($_POST);
+            unset($_SERVER);
+            unset($_COOKIE);
+            unset($_FILES);
+            unset($_REQUEST);
+
+            // NOTE - $_ENV managed by Application & $_SESSION managed independently
+        }
+
+        return $staticGlobals;
+    }
+
+    /**
+     * Wrapper to get the globals from setGlobals
+     *
+     * @return array
+     */
+    public static function fromGlobals(): array
+    {
+        return static::setGlobals();
+    }
+
+    /**
      * Normalize and store server parameters, extracting HTTP headers.
      *
      * @param array $server Raw server parameters.
