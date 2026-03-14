@@ -135,7 +135,7 @@ class Input extends Singleton implements InputInterface
         $this->inputStream = $this->config['input'] ?? '';
 
         // detect request body data types and populate $this->request
-        $this->request = $this->detectRequest($this->contentType(), $this->inputStream, $this->request);
+        $this->request = $this->detectRequest($this->contentType(), $this->inputStream, $this->config['request']);
     }
 
     /**
@@ -452,7 +452,10 @@ class Input extends Singleton implements InputInterface
      */
     protected function detectRequest(string $contentType, string $inputStream, array $postedRequest): array
     {
-        if (strpos($contentType, 'multipart/form-data', 0) !== false) {
+        if (empty($contentType)) {
+            // just use what was sent in from request
+            $request = $postedRequest;
+        } elseif (strpos($contentType, 'multipart/form-data', 0) !== false) {
             // use $_POST
             $request = $postedRequest;
             // files in $_FILES
