@@ -109,16 +109,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
      */
     public function call(array $routeMatched): string
     {
-        logMsg('INFO', __METHOD__ . ' request uri ' . ($routeMatched['request uri'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' matched uri ' . ($routeMatched['matched uri'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' matched method ' . (is_array($routeMatched['matched method']) ? implode('|', $routeMatched['matched method']) : $routeMatched['matched method']));
-        logMsg('INFO', __METHOD__ . ' url ' . ($routeMatched['url'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' argv ' . json_encode(($routeMatched['argv'] ?? [])));
-        logMsg('INFO', __METHOD__ . ' argc ' . ($routeMatched['argc'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' args ' . (($routeMatched['args'] ?? false) ? 'true' : 'false'));
-        logMsg('INFO', __METHOD__ . ' name ' . ($routeMatched['name'] ?? ''));
-        logMsg('INFO', __METHOD__ . ' controller ' . ($routeMatched['callback'][self::CONTROLLER] ?? ''));
-        logMsg('INFO', __METHOD__ . ' method ' . ($routeMatched['callback'][self::METHOD] ?? ''));
+        logMsg('INFO', __METHOD__ . var_export($routeMatched, true));
 
         // get the controller from the route matched
         $controllerClass = $routeMatched['callback'][self::CONTROLLER];
