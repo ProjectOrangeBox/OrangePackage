@@ -162,6 +162,7 @@ class Output extends Singleton implements OutputInterface
         $this->headers = [];
         // create a mapping of string keys to response codes for easy lookup
         $this->responseCodesInternalStringKeys = array_change_key_case(array_flip($this->config['status codes']), CASE_LOWER);
+
         $this->mimes = $this->config['mimes'] ?? [];
 
         // set the default response code
@@ -434,24 +435,24 @@ class Output extends Singleton implements OutputInterface
      */
     public function responseCode(int|string $code): self
     {
-        logMsg('DEBUG', __METHOD__, ['code' => $code]);
+        logMsg('DEBUG', __METHOD__, ['code' => (string)$code]);
 
+        // but if it is a string we need to try and detect the error number
         if (is_string($code)) {
-            $code = strtolower($code);
-
-            if (isset($this->responseCodesInternalStringKeys[$code])) {
-                $this->responseCode = (int)$this->responseCodesInternalStringKeys[$code];
-            }
-        } else {
-            // it is a integer
-            $this->responseCode = $code;
+            $code = $this->responseCodesInternalStringKeys[strtolower($code)] ?? 0;
         }
 
+        // now bring it into http scope if necessary
         if ($code > 599 || $code < 100) {
-            $this->responseCode = 500;
+            $code = 500;
         }
 
+        // Save it
+        $this->responseCode = (int)$code;
+
+        // set final header response
         $this->header($this->getResponseHeader($this->responseCode), self::REPLACEALL, true);
+
 
         return $this;
     }
@@ -471,18 +472,18 @@ class Output extends Singleton implements OutputInterface
     /**
      * Detects the appropriate response type based on the client's Accept header and sets the Content-Type accordingly.
      *
-     * @param string $responseType 
-     * @return void 
+     * @param string $responseType
+     * @return void
      */
     protected function detectAcceptsType(string $responseType)
     {
         if ($this->config['auto detect accepts type']) {
-            $accepts = $this->input->header('accept');
-
-            if (strpos($accepts, 'application/json', 0) !== false || strpos($accepts, 'text/javascript', 0) !== false) {
-                $responseType = 'application/json';
-            } elseif (strpos($accepts, 'text/html', 0) !== false || strpos($accepts, 'application/xhtml+xml', 0) !== false) {
-                $responseType = 'text/html';
+            if (!empty($accepts = $this->input->header('accept'))) {
+                if (strpos($accepts, 'application/json', 0) !== false || strpos($accepts, 'text/javascript', 0) !== false) {
+                    $responseType = 'application/json';
+                } elseif (strpos($accepts, 'text/html', 0) !== false || strpos($accepts, 'application/xhtml+xml', 0) !== false) {
+                    $responseType = 'text/html';
+                }
             }
         }
 

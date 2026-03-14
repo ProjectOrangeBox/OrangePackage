@@ -125,16 +125,16 @@ final class OutputTest extends UnitTestHelper
 
     public function testResponseCodeInvalid(): void
     {
-        $this->expectException(OutputException::class);
+        $this->instance->responseCode('foobar');
 
-        $this->assertNull($this->instance->responseCode('foobar'));
+        $this->assertEquals(500, $this->instance->getResponseCode());
     }
 
     public function testResponseCodeInvalidInt(): void
     {
-        $this->expectException(OutputException::class);
+        $this->instance->responseCode(666);
 
-        $this->assertNull($this->instance->responseCode(666));
+        $this->assertEquals(500, $this->instance->getResponseCode());
     }
 
     public function testGetResponseCode(): void

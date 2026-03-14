@@ -101,6 +101,9 @@ final class InputTest extends UnitTestHelper
 
     public function testRequest(): void
     {
+
+        var_dump($this->instance->request());
+
         $this->assertEquals([
             'name' => 'Jon Appleseed',
             'age' => 26,
