@@ -22,76 +22,62 @@ class Dot
      */
     public static function changeDelimiter(string $delimiter): void
     {
-        self::$delimiter = $delimiter;
+        static::$delimiter = $delimiter;
     }
 
     /**
      * Sets a value in an array or object using dot notation.
      *
-     * @param array|object &$data The data structure to modify.
+     * @param array|\StdClass &$data The data structure to modify.
      * @param string $key The dot-notated key.
      * @param mixed $value The value to set.
      * @return void
      */
-    public static function set(array|object &$data, string $key, mixed $value): void
+    public static function set(array|\StdClass &$data, string $key, mixed $value): void
     {
         // Check if the key contains the delimiter; if not, treat as simple key
-        if (strpos($key, self::$delimiter) === false) {
+        if (strpos($key, static::$delimiter) === false) {
             if (is_object($data)) {
                 $data->$key = $value;
             } else {
                 $data[$key] = $value;
             }
         } else {
-            if (!empty(self::$delimiter)) {
-                // Split the key into parts using the delimiter
-                $keys = explode(self::$delimiter, $key);
+            // Split the key into parts
+            $keys = explode(static::$delimiter, $key);
 
-                // Traverse through all but the last key to build the nested structure
-                while (count($keys) > 1) {
-                    // Get the next key part
-                    $key = array_shift($keys);
-
-                    if (is_object($data)) {
-                        // For objects, create a new StdClass if the property doesn't exist
-                        if (!isset($data->$key)) {
-                            $data->$key = new \StdClass();
-                        }
-                        // Move reference to the nested object
-                        $data = &$data->$key;
-
-                        $key = reset($keys);
-
-                        $data->$key = $value;
-                    } else {
-                        // For arrays, create an empty array if the key doesn't exist
-                        if (!isset($data[$key])) {
-                            $data[$key] = [];
-                        }
-                        // Move reference to the nested array
-                        $data = &$data[$key];
-
-                        $key = reset($keys);
-
-                        $data[$key] = $value;
+            // Use a separate reference to navigate without changing $data's reference
+            $current = &$data;
+            foreach ($keys as $k) {
+                if (is_object($current)) {
+                    if (!isset($current->$k)) {
+                        $current->$k = new \StdClass();
                     }
+                    $current = &$current->$k;
+                } else {
+                    if (!isset($current[$k])) {
+                        $current[$k] = [];
+                    }
+                    $current = &$current[$k];
                 }
             }
+            // Set the value at the final reference
+            $current = $value;
         }
     }
 
     /**
      * Gets a value from an array or object using dot notation.
      *
-     * @param array|object $data The data structure to access.
+     * @param array|\StdClass $data The data structure to access.
      * @param string $key The dot-notated key.
      * @param mixed $default The default value if key not found.
      * @return mixed The value or default.
      */
-    public static function get(array|object $data, string $key, mixed $default = null): mixed
+    public static function get(array|\StdClass $data, string $key, mixed $default = null): mixed
     {
         // Check if the key is simple (no delimiter)
-        if (strpos($key, self::$delimiter) === false) {
+        if (strpos($key, static::$delimiter) === false) {
             if (is_object($data)) {
                 if (isset($data->$key)) {
                     $data = $data->$key;
@@ -107,7 +93,7 @@ class Dot
             }
         } else {
             // Split the key into parts
-            $keys = explode(self::$delimiter, $key);
+            $keys = explode(static::$delimiter, $key);
 
             // Traverse each key part, updating $data to the nested value
             foreach ($keys as $key) {
@@ -137,26 +123,26 @@ class Dot
     /**
      * Checks if a key exists in the data using dot notation.
      *
-     * @param mixed &$data The data structure to check.
+     * @param array|\StdClass &$data The data structure to check.
      * @param string $key The dot-notated key.
      * @return bool True if the key exists, false otherwise.
      */
-    public static function isset(mixed &$data, string $key): bool
+    public static function isset(array|\StdClass  &$data, string $key): bool
     {
-        return self::get($data, $key, UNDEFINED) !== UNDEFINED;
+        return static::get($data, $key, UNDEFINED) !== UNDEFINED;
     }
 
     /**
      * Unset a key in the data using dot notation.
      *
-     * @param mixed &$data The data structure to modify.
+     * @param array|\StdClass &$data The data structure to modify.
      * @param string $key The dot-notated key to unset.
      * @return void
      */
-    public static function unset(mixed &$data, string $key): void
+    public static function unset(array|\StdClass  &$data, string $key): void
     {
         // Check if the key is simple (no delimiter)
-        if (strpos($key, self::$delimiter) === false) {
+        if (strpos($key, static::$delimiter) === false) {
             if (is_object($data)) {
                 unset($data->$key);
             } else {
@@ -164,51 +150,54 @@ class Dot
             }
         } else {
             // Split the key into parts
-            $keys = explode(self::$delimiter, $key);
+            $keys = explode(static::$delimiter, $key);
 
-            // Traverse to the parent of the key to unset
-            while (count($keys) > 1) {
-                // Get the next key part
-                $key = array_shift($keys);
-
-                if (is_object($data)) {
-                    // For objects, create StdClass if missing (though for unset, it might not be necessary, but consistent with set)
-                    if (!isset($data->$key)) {
-                        $data->$key = new \StdClass();
+            // Navigate to the parent of the key to unset
+            $current = &$data;
+            // Remove the last key
+            $lastKey = array_pop($keys);
+            foreach ($keys as $k) {
+                if (is_object($current)) {
+                    if (!isset($current->$k)) {
+                        // Path doesn't exist, nothing to unset
+                        return;
                     }
-                    // Move reference to the nested object
-                    $data = &$data->$key;
+                    $current = &$current->$k;
                 } else {
-                    // For arrays, create empty array if missing
-                    if (!isset($data[$key])) {
-                        $data[$key] = [];
+                    if (!isset($current[$k])) {
+                        // Path doesn't exist
+                        return;
                     }
-                    // Move reference to the nested array
-                    $data = &$data[$key];
-
-                    $key = reset($keys);
-
-                    unset($data[$key]);
+                    $current = &$current[$k];
                 }
+            }
+            // Unset the final key
+            if (is_object($current)) {
+                unset($current->$lastKey);
+            } else {
+                unset($current[$lastKey]);
             }
         }
     }
 
     /**
-     * Flattens a nested array into a single-level array with dot-notated keys.
+     * Flattens a nested array or StdClass object into a single-level array with dot-notated keys.
      *
-     * @param array $lines The nested array to flatten.
+     * @param array|\StdClass $array The nested array or object to flatten.
      * @param string $prepend Internal parameter for recursion, the current key prefix.
      * @return array The flattened array with dot-notated keys.
      */
-    public static function flatten(array $lines, string $prepend = ''): array
+    public static function flatten(array|\StdClass $array, string $prepend = ''): array
     {
         $flatten = [];
 
-        foreach ($lines as $key => $value) {
-            if (is_array($value) && !empty($value)) {
-                // Recursively flatten nested arrays, prepending the current key with delimiter
-                $flatten[] = self::flatten($value, $prepend . $key . self::$delimiter);
+        // Convert objects into arrays for easier traversal
+        $iterable = is_object($array) ? (array) $array : $array;
+
+        foreach ($iterable as $key => $value) {
+            if ((is_array($value) || $value instanceof \StdClass) && !empty($value)) {
+                // Recursively flatten nested arrays/objects, prepending the current key with delimiter
+                $flatten[] = static::flatten($value, $prepend . $key . static::$delimiter);
             } else {
                 // Add the key-value pair with the full dot-notated key
                 $flatten[] = [$prepend . $key => $value];
@@ -230,11 +219,12 @@ class Dot
         $newArray = [];
 
         foreach ($array as $key => $value) {
-            $dots = explode(self::$delimiter, $key);
+            $dots = explode(static::$delimiter, $key);
 
             if (count($dots) > 1) {
                 // For dot-notated keys, build the nested structure
                 $last = &$newArray[$dots[0]];
+
                 foreach ($dots as $k => $dot) {
                     if ($k == 0) {
                         // Skip the first dot since it's already set

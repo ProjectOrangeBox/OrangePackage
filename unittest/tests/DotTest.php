@@ -11,16 +11,22 @@ class DotTest extends TestCase
     {
         // Default delimiter is '.'
         $data = ['a' => ['b' => 'value']];
+        Dot::changeDelimiter('.');
         Dot::set($data, 'a.b', 'newvalue');
         $this->assertEquals('newvalue', Dot::get($data, 'a.b'));
+
+        $this->assertEquals([
+            'a.b' => 'newvalue',
+        ], Dot::flatten($data));
 
         // Change delimiter to '-'
         Dot::changeDelimiter('-');
         Dot::set($data, 'a-b', 'dashvalue');
         $this->assertEquals('dashvalue', Dot::get($data, 'a-b'));
 
-        // Reset to default
-        Dot::changeDelimiter('.');
+        $this->assertEquals([
+            'a-b' => 'dashvalue',
+        ], Dot::flatten($data));
     }
 
     public function testSetAndGetWithArray(): void
@@ -39,6 +45,12 @@ class DotTest extends TestCase
         // Deep nested
         Dot::set($data, 'deep.nested.key', 'deepvalue');
         $this->assertEquals('deepvalue', Dot::get($data, 'deep.nested.key'));
+
+        $this->assertEquals([
+            'key' => 'value',
+            'nested.key' => 'nestedvalue',
+            'deep.nested.key' => 'deepvalue',
+        ], Dot::flatten($data));
     }
 
     public function testSetAndGetWithObject(): void
@@ -54,6 +66,16 @@ class DotTest extends TestCase
         $this->assertEquals('nestedvalue', Dot::get($data, 'nested.key'));
         $this->assertInstanceOf(\stdClass::class, $data->nested);
         $this->assertEquals('nestedvalue', $data->nested->key);
+
+        // Deep nested
+        Dot::set($data, 'deep.nested.key', 'deepvalue');
+        $this->assertEquals('deepvalue', Dot::get($data, 'deep.nested.key'));
+
+        $this->assertEquals([
+            'key' => 'value',
+            'nested.key' => 'nestedvalue',
+            'deep.nested.key' => 'deepvalue',
+        ], Dot::flatten($data));
     }
 
     public function testGetWithDefault(): void
@@ -83,8 +105,14 @@ class DotTest extends TestCase
         $this->assertFalse(Dot::isset($data, 'a.b'));
         $this->assertTrue(Dot::isset($data, 'a.c'));
 
+        $this->assertEquals([
+            'a.c' => 'othervalue',
+        ], Dot::flatten($data));
+
         Dot::unset($data, 'a');
         $this->assertFalse(Dot::isset($data, 'a'));
+
+        $this->assertEquals([], Dot::flatten($data));
     }
 
     public function testFlatten(): void
@@ -99,14 +127,11 @@ class DotTest extends TestCase
             ]
         ];
 
-        $flattened = Dot::flatten($data);
-        $expected = [
+        $this->assertEquals([
             'a' => 'value',
             'b.c' => 'nested',
             'b.d.e' => 'deep'
-        ];
-
-        $this->assertEquals($expected, $flattened);
+        ], Dot::flatten($data));
     }
 
     public function testExpand(): void
@@ -117,8 +142,7 @@ class DotTest extends TestCase
             'b.d.e' => 'deep'
         ];
 
-        $expanded = Dot::expand($data);
-        $expected = [
+        $this->assertEquals([
             'a' => 'value',
             'b' => [
                 'c' => 'nested',
@@ -126,9 +150,7 @@ class DotTest extends TestCase
                     'e' => 'deep'
                 ]
             ]
-        ];
-
-        $this->assertEquals($expected, $expanded);
+        ], Dot::expand($data));
     }
 
     public function testRoundTripFlattenExpand(): void
