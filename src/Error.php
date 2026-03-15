@@ -157,8 +157,6 @@ class Error extends Singleton
      */
     public string $outputContent = '';
 
-    public ContainerInterface $container;
-
     /**
      * Constructor
      *
@@ -167,10 +165,11 @@ class Error extends Singleton
      * @param array $config Configuration options.
      * @param Throwable|null $thrown Optional exception causing the error.
      */
-    protected function __construct(array $config = [], ?ContainerInterface $container = null, ?Throwable $thrown = null)
+    protected function __construct(array $config = [], public ?ContainerInterface $container = null, ?Throwable $thrown = null)
     {
         logMsg('INFO', __METHOD__);
 
+        // if they didn't send in a container we try to attach the default
         $this->container = $container ?? container();
 
         // merge defaults with passed in config
@@ -251,6 +250,7 @@ class Error extends Singleton
             $this->outputContent = $this->view->render($this->viewFile);
         }
 
+        // if we still don't have output content then use the raw fallback
         $this->sendOutput($this->outputContent);
     }
 
@@ -263,8 +263,7 @@ class Error extends Singleton
      */
     public function show(int $code = 500, string $message = '', ?array $options = null): void
     {
-        logMsg('INFO', __METHOD__);
-        logMsg('INFO', '', ['code' => $code, 'message' => $message, 'options' => $options]);
+        logMsg('INFO', __METHOD__, ['code' => $code, 'message' => $message, 'options' => $options]);
 
         $this->data->merge([
             'code' => $code,
@@ -402,12 +401,12 @@ class Error extends Singleton
      */
     protected function getService(string $name, array $arguments): mixed
     {
-        logMsg('INFO', __METHOD__ . ' ' . $name);
-        logMsg('DEBUG', '', ['name' => $name, 'arguments' => $arguments]);
+        logMsg('INFO', __METHOD__ . ' ' . $name, ['name' => $name, 'arguments' => $arguments]);
 
         $service = null;
 
         try {
+            // try to get the service from the container first
             $service = $this->container->get($name);
         } catch (Throwable $e) {
             // fall back to orange classes / services
@@ -419,6 +418,7 @@ class Error extends Singleton
             // default orange namespace
             $namespace = '\\orange\\framework\\' . $className;
 
+            // if no arguments just get instance otherwise pass arguments to instance
             if (empty($arguments)) {
                 $service = $namespace::getInstance();
             } else {

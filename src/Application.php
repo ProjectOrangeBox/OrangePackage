@@ -303,9 +303,9 @@ class Application
     protected function preContainer(): void
     {
         // include the user supplied helpers
-        $helpers = $this->config['helpers'] ?? [];
         // include the orange required helpers
-        $helpers = $helpers + ($this->config['required helpers'] ?? []);
+        $helpers = ($this->config['helpers'] ?? []) + ($this->config['required helpers'] ?? []);
+
         // now include each helper file
         foreach ($helpers as $helperFile) {
             // get the real path of the helper file
