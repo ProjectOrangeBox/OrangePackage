@@ -5,8 +5,9 @@ Dot
  [x] Get with default
  [x] Isset
  [x] Unset
- [x] Flatten
- [x] Expand
+ [x] Flatten with array
+ [x] Flatten with object
+ [x] Expand with array
  [x] Expand with object
  [x] Round trip flatten expand
 

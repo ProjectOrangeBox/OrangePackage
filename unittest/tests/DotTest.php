@@ -115,7 +115,7 @@ class DotTest extends TestCase
         $this->assertEquals([], Dot::flatten($data));
     }
 
-    public function testFlatten(): void
+    public function testFlattenWithArray(): void
     {
         $data = [
             'a' => 'value',
@@ -126,6 +126,22 @@ class DotTest extends TestCase
                 ]
             ]
         ];
+
+        $this->assertEquals([
+            'a' => 'value',
+            'b.c' => 'nested',
+            'b.d.e' => 'deep'
+        ], Dot::flatten($data));
+    }
+
+    public function testFlattenWithObject(): void
+    {
+        $data = new \StdClass();
+        $data->a = 'value';
+        $data->b = new \StdClass();
+        $data->b->c = 'nested';
+        $data->b->d = new \StdClass();
+        $data->b->d->e = 'deep';
 
         $this->assertEquals([
             'a' => 'value',
