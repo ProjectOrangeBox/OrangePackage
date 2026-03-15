@@ -134,13 +134,31 @@ class DotTest extends TestCase
         ], Dot::flatten($data));
     }
 
-    public function testExpand(): void
+    public function testExpandWithArray(): void
     {
         $data = [
             'a' => 'value',
             'b.c' => 'nested',
             'b.d.e' => 'deep'
         ];
+
+        $this->assertEquals([
+            'a' => 'value',
+            'b' => [
+                'c' => 'nested',
+                'd' => [
+                    'e' => 'deep'
+                ]
+            ]
+        ], Dot::expand($data));
+    }
+
+    public function testExpandWithObject(): void
+    {
+        $data = new \StdClass();
+        $data->{'a'} = 'value';
+        $data->{'b.c'} = 'nested';
+        $data->{'b.d.e'} = 'deep';
 
         $this->assertEquals([
             'a' => 'value',

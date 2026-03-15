@@ -7,5 +7,6 @@ Dot
  [x] Unset
  [x] Flatten
  [x] Expand
+ [x] Expand with object
  [x] Round trip flatten expand
 

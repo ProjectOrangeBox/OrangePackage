@@ -209,16 +209,19 @@ class Dot
     }
 
     /**
-     * Expands a flat array with dot-notated keys into a nested array structure.
+     * Expands a flat array or StdClass with dot-notated keys into a nested array structure.
      *
-     * @param array $array The flat array with dot-notated keys.
+     * @param array|\StdClass $array The flat array or object with dot-notated keys.
      * @return array The nested array.
      */
-    public static function expand(array $array): array
+    public static function expand(array|\StdClass $array): array
     {
         $newArray = [];
 
-        foreach ($array as $key => $value) {
+        // Convert objects into arrays for easier traversal
+        $iterable = is_object($array) ? (array) $array : $array;
+
+        foreach ($iterable as $key => $value) {
             $dots = explode(static::$delimiter, $key);
 
             if (count($dots) > 1) {
