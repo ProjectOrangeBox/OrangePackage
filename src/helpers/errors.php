@@ -3,8 +3,16 @@
 declare(strict_types=1);
 
 /*
- * Low level error handling
+ * Wrapper to throw http exceptions for common http errors
  */
+
+// 400 Bad Request
+if (!function_exists('show400')) {
+    function show400(string $message = ''): void
+    {
+        throw new \orange\framework\exceptions\http\Http400($message);
+    }
+}
 
 // 401 Unauthorized
 if (!function_exists('show401')) {
@@ -30,11 +38,35 @@ if (!function_exists('show404')) {
     }
 }
 
+// 422 Unprocessable Entity
+if (!function_exists('show422')) {
+    function show422(string $message = ''): void
+    {
+        throw new \orange\framework\exceptions\http\Http422($message);
+    }
+}
+
+// 429 Too Many Requests
+if (!function_exists('show429')) {
+    function show429(string $message = ''): void
+    {
+        throw new \orange\framework\exceptions\http\Http429($message);
+    }
+}
+
 // 500 Internal Server Error
 if (!function_exists('show500')) {
     function show500(string $message = ''): void
     {
         throw new \orange\framework\exceptions\http\Http500($message);
+    }
+}
+
+// 503 Service Unavailable
+if (!function_exists('show503')) {
+    function show503(string $message = ''): void
+    {
+        throw new \orange\framework\exceptions\http\Http503($message);
     }
 }
 

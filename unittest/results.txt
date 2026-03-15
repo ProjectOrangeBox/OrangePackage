@@ -78,6 +78,19 @@ Dot
  [x] Expand with object
  [x] Round trip flatten expand
 
+Errors
+ [x] Show 400 throws http 400
+ [x] Show 401 throws http 401
+ [x] Show 403 throws http 403
+ [x] Show 404 throws http 404
+ [x] Show 422 throws http 422
+ [x] Show 429 throws http 429
+ [x] Show 500 throws http 500
+ [x] Show 503 throws http 503
+ [x] Redirect 301 throws http 301
+ [x] Error handler throws error exception
+ [x] Error handler ignores when reporting zero
+
 Event
  [x] Register closure
  [x] Register class method

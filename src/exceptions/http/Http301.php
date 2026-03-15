@@ -11,7 +11,7 @@ class Http301 extends Http
 {
     protected string $url;
 
-    public function __construct(string $url, string $message = '', int $code = 301, Throwable $previous = null)
+    public function __construct(string $url, string $message = '', int $code = 301, ?Throwable $previous = null)
     {
         $this->url = $url;
 
