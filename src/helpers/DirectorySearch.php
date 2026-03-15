@@ -72,7 +72,17 @@ class DirectorySearch implements DirectorySearchInterface
         'resources' => [],
     ];
 
-    // not a standalone class and not a singleton
+    /**
+     * Not a standalone class and not a singleton
+     *
+     * Constructor for DirectorySearch.
+     *
+     * Initializes the DirectorySearch instance with the provided configuration.
+     * Merges the config with defaults, assigns properties, sets up resource key style,
+     * and adds any default directories and resources.
+     *
+     * @param array $config Configuration array for the DirectorySearch instance.
+     */
     public function __construct(array $config)
     {
         $config = array_replace($this->defaults, $config);
@@ -90,64 +100,6 @@ class DirectorySearch implements DirectorySearchInterface
         $this->flushDirectories(true)->addDirectories($config['directories'])->addResources($config['resources']);
     }
 
-    protected function setupResourceKeyStyle(array $config): void
-    {
-        /*
-        passed fileinfo
-          fileInfo:
-            dirname = "/home/johnnyAppleseed/Sites/orange/application/welcome/views/test"
-            basename = "uploadForm.php"
-            extension = "php"
-            filename = "uploadForm"
-            searchpath = "/home/johnnyAppleseed/Sites/orange/application/welcome/views"
-        */
-
-        if (is_closure($config['resource key style'])) {
-            $this->keyClosure = $config['resource key style'];
-        } else {
-            // the built in resource key extractor based on the complete resource file path
-            switch ($config['resource key style']) {
-                case 'filename':
-                case 'config':
-                    // The key will be the filename ie. uploadForm
-                    $this->keyClosure = function ($fileInfo) {
-                        return $fileInfo['filename'];
-                    };
-                    break;
-                case 'basename':
-                    // The key will be the basename ie. uploadForm.php
-                    $this->keyClosure = function ($fileInfo) {
-                        return $fileInfo['basename'];
-                    };
-                    break;
-                case 'fullpath':
-                    // The key will be the dirname + basename ie. /home/johnnyAppleseed/Sites/orange/application/welcome/views/test/uploadForm.php
-                    $this->keyClosure = function ($fileInfo) {
-                        return $fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'];
-                    };
-                    break;
-                case 'localpath':
-                    // The key will be the dirname + basename - the search path ie. test/uploadForm.php
-                    $this->keyClosure = function ($fileInfo) {
-                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen($fileInfo['searchpath']) + 1);
-                    };
-                    break;
-                case 'apppath':
-                    // The key will be the dirname + basename - the search path ie. /application/welcome/views/test/uploadForm.php
-                    $this->keyClosure = function ($fileInfo) {
-                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen(__ROOT__));
-                    };
-                    break;
-                case 'view':
-                default:
-                    // The key will be the dirname + basename - the search path - the extension ie. test/uploadForm
-                    $this->keyClosure = function ($fileInfo) {
-                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen($fileInfo['searchpath']) + 1, -strlen($fileInfo['extension']) - 1);
-                    };
-                    break;
-            }
-        }
-    }
 
     /**
      * add new directory
@@ -189,9 +141,9 @@ class DirectorySearch implements DirectorySearchInterface
      * use the 3rd argument 'asBlock' to keep the directories array in order when adding
      *
      * @param array $directories
-     * @param int $prepend
+     * @param int|null $pend
      * @param bool $asBlock
-     * @return DirectorySearch
+     * @return self
      * @throws ClassLocked
      * @throws NotFound
      * @throws DirectoryNotFound
@@ -214,6 +166,11 @@ class DirectorySearch implements DirectorySearchInterface
 
     /**
      * remove if it matches the directory
+     *
+     * @param string $directory
+     * @param bool $removeFoundResources
+     * @return self
+     * @throws ClassLocked
      */
     public function removeDirectory(string $directory, bool $removeFoundResources = true): self
     {
@@ -238,6 +195,14 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * remove multiple directories
+     *
+     * @param array $directories
+     * @param bool $removeFoundResources
+     * @return self
+     * @throws ClassLocked
+     */
     public function removeDirectories(array $directories, bool $removeFoundResources = true): self
     {
         foreach ($directories as $directory) {
@@ -247,11 +212,24 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * list all directories
+     *
+     * @return array
+     */
     public function listDirectories(): array
     {
         return array_keys($this->directories);
     }
 
+    /**
+     * replace all directories
+     *
+     * @param array $directories
+     * @param bool $removeFoundResources
+     * @return self
+     * @throws ClassLocked
+     */
     public function replaceDirectories(array $directories, bool $removeFoundResources = true): self
     {
         $this->ifLockedThrowException();
@@ -271,11 +249,23 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * check if directory exists in the list
+     *
+     * @param string $directory
+     * @return bool
+     */
     public function directoryExists(string $directory): bool
     {
         return array_key_exists(realpath(rtrim($directory, DIRECTORY_SEPARATOR)), $this->directories);
     }
 
+    /**
+     * flush all directories
+     *
+     * @param bool $flushResources
+     * @return self
+     */
     public function flushDirectories(bool $flushResources = true): self
     {
         $this->directories = [];
@@ -284,6 +274,8 @@ class DirectorySearch implements DirectorySearchInterface
             $this->flushResources();
         }
 
+        $this->rescan();
+
         $this->callback('flushDirectories');
 
         return $this;
@@ -291,6 +283,14 @@ class DirectorySearch implements DirectorySearchInterface
 
     /* resources */
 
+    /**
+     * add a single resource
+     *
+     * @param string $resource
+     * @param string $path
+     * @return self
+     * @throws ClassLocked
+     */
     public function addResource(string $resource, string $path): self
     {
         // should we throw an exception?
@@ -306,6 +306,12 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * add multiple resources
+     *
+     * @param array $resources
+     * @return self
+     */
     public function addResources(array $resources): self
     {
         foreach ($resources as $resource => $path) {
@@ -315,6 +321,12 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * replace all resources
+     *
+     * @param array $resources
+     * @return self
+     */
     public function replaceResources(array $resources): self
     {
         // should we throw an exception?
@@ -323,15 +335,29 @@ class DirectorySearch implements DirectorySearchInterface
         return $this->flushResources()->addResources($resources);
     }
 
+    /**
+     * flush all resources
+     *
+     * @return self
+     */
     public function flushResources(): self
     {
         $this->resources = [];
+
+        $this->rescan();
 
         $this->callback('flushResources');
 
         return $this;
     }
 
+    /**
+     * remove a single resource
+     *
+     * @param string $resource
+     * @return self
+     * @throws ClassLocked
+     */
     public function removeResource(string $resource): self
     {
         // should we throw an exception?
@@ -342,6 +368,12 @@ class DirectorySearch implements DirectorySearchInterface
         return $this;
     }
 
+    /**
+     * remove multiple resources
+     *
+     * @param array $resources
+     * @return self
+     */
     public function removeResources(array $resources): self
     {
         foreach ($resources as $key) {
@@ -352,7 +384,11 @@ class DirectorySearch implements DirectorySearchInterface
     }
 
     /**
-     * find all matching
+     * find all matching resources for a given key
+     *
+     * @param string $resource
+     * @return array
+     * @throws ResourceNotFound
      */
     public function find(string $resource): array
     {
@@ -373,6 +409,8 @@ class DirectorySearch implements DirectorySearchInterface
 
     /**
      * find all resources
+     *
+     * @return array
      */
     public function findAll(): array
     {
@@ -490,10 +528,6 @@ class DirectorySearch implements DirectorySearchInterface
     }
 
     /**
-     * Protected
-     */
-
-    /**
      * Scan all of the directorys for matching resources
      *
      * @return void
@@ -597,7 +631,7 @@ class DirectorySearch implements DirectorySearchInterface
         // is a callback registered?
         if (!empty($this->callback)) {
             if (!is_object($this->callback[0]) || !method_exists($this->callback[0], $this->callback[1])) {
-                throw new NotFound('Could not call Directory Search Callback');
+                throw new NotFound('Could not call Directory Search Callback ' . $action . ' because method ' . $this->callback[1] . ' does not exist on class ' . (is_object($this->callback[0]) ? get_class($this->callback[0]) : $this->callback[0]));
             }
 
             // call the callback and pass the action and this object
@@ -605,5 +639,81 @@ class DirectorySearch implements DirectorySearchInterface
         }
 
         return $this;
+    }
+
+    /**
+     * Configure the resource key extraction strategy.
+     *
+     * The resource key style determines how filenames are translated into
+     * resource keys (e.g., view paths, filenames, full paths, etc.).
+     *
+     * @param array $config The configuration array, must include a 'resource key style' entry.
+     *                      Can be a closure or one of the built-in style strings:
+     *                      'filename', 'basename', 'fullpath', 'localpath', 'apppath', 'wwwpath', or 'view'.
+     */
+    protected function setupResourceKeyStyle(array $config): void
+    {
+        /*
+        passed fileinfo
+            fileInfo:
+            dirname = "/home/johnnyAppleseed/Sites/orange/application/welcome/views/test"
+            basename = "uploadForm.php"
+            extension = "php"
+            filename = "uploadForm"
+            searchpath = "/home/johnnyAppleseed/Sites/orange/application/welcome/views"
+        */
+
+        // if they passed a closure use it
+        if (is_closure($config['resource key style'])) {
+            $this->keyClosure = $config['resource key style'];
+        } else {
+            // or use one of the built in resource key extractor based on the complete resource file path
+            switch ($config['resource key style']) {
+                case 'filename':
+                case 'config':
+                    // The key will be the filename ie. uploadForm
+                    $this->keyClosure = function ($fileInfo) {
+                        return $fileInfo['filename'];
+                    };
+                    break;
+                case 'basename':
+                    // The key will be the basename ie. uploadForm.php
+                    $this->keyClosure = function ($fileInfo) {
+                        return $fileInfo['basename'];
+                    };
+                    break;
+                case 'fullpath':
+                    // The key will be the dirname + basename ie. /home/johnnyAppleseed/Sites/orange/application/welcome/views/test/uploadForm.php
+                    $this->keyClosure = function ($fileInfo) {
+                        return $fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'];
+                    };
+                    break;
+                case 'localpath':
+                    // The key will be the dirname + basename - the search path ie. test/uploadForm.php
+                    $this->keyClosure = function ($fileInfo) {
+                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen($fileInfo['searchpath']) + 1);
+                    };
+                    break;
+                case 'apppath':
+                    // The key will be the dirname + basename - the search path ie. /application/welcome/views/test/uploadForm.php
+                    $this->keyClosure = function ($fileInfo) {
+                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen(__ROOT__));
+                    };
+                    break;
+                case 'wwwpath':
+                    // The key will be the dirname + basename - the search path ie. /application/welcome/views/test/uploadForm.php
+                    $this->keyClosure = function ($fileInfo) {
+                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen(__WWW__));
+                    };
+                    break;
+                case 'view':
+                default:
+                    // The key will be the dirname + basename - the search path - the extension ie. test/uploadForm
+                    $this->keyClosure = function ($fileInfo) {
+                        return substr($fileInfo['dirname'] . DIRECTORY_SEPARATOR . $fileInfo['basename'], strlen($fileInfo['searchpath']) + 1, -strlen($fileInfo['extension']) - 1);
+                    };
+                    break;
+            }
+        }
     }
 }

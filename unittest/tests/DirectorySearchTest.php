@@ -37,6 +37,7 @@ final class DirectorySearchTest extends UnitTestHelper
                 'callback' => [],
             ]);
         }
+        $this->instance->flushDirectories()->flushResources();
     }
 
     public function testAddDirectory(): void
@@ -174,5 +175,63 @@ final class DirectorySearchTest extends UnitTestHelper
         $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addDirectories([$a, $b]));
 
         $this->assertEquals(WORKINGDIR . '/env/configExample2.php', $this->instance->findLast('configExample2'));
+    }
+
+    public function testFlushDirectories(): void
+    {
+        $directories = [$this->d1, $this->d2];
+
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addDirectories($directories));
+        $this->assertEquals($directories, $this->instance->listDirectories());
+
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->flushDirectories());
+        $this->assertEquals([], $this->instance->listDirectories());
+    }
+
+    public function testFlushResources(): void
+    {
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addResource('bar', $this->r1));
+        $this->assertTrue($this->instance->exists('bar'));
+
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->flushResources());
+        $this->assertFalse($this->instance->exists('bar'));
+    }
+
+    public function testRemoveResource(): void
+    {
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addResource('bar', $this->r1));
+        $this->assertTrue($this->instance->exists('bar'));
+
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->removeResource('bar'));
+        $this->assertFalse($this->instance->exists('bar'));
+    }
+
+    public function testRemoveResources(): void
+    {
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addResources(['bar' => $this->r1, 'foo' => $this->r2]));
+        $this->assertTrue($this->instance->exists('bar'));
+        $this->assertTrue($this->instance->exists('foo'));
+
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->removeResources(['bar', 'foo']));
+        $this->assertFalse($this->instance->exists('bar'));
+        $this->assertFalse($this->instance->exists('foo'));
+    }
+
+    public function testFind(): void
+    {
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addDirectory($this->d1));
+
+        $result = $this->instance->find('bar/bar');
+        $this->assertIsArray($result);
+        $this->assertContains($this->r1, $result);
+    }
+
+    public function testList(): void
+    {
+        $this->assertInstanceOf(DirectorySearchInterface::class, $this->instance->addDirectory($this->d1));
+
+        $result = $this->instance->list();
+        $this->assertIsArray($result);
+        $this->assertContains('bar/bar', $result);
     }
 }
