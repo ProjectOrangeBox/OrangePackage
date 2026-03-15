@@ -105,9 +105,6 @@ class Router extends Singleton implements RouterInterface
     // include ConfigurationTrait methods
     use ConfigurationTrait;
 
-    // Provides access to input-related utilities (e.g., HTTP method, request URI).
-    protected InputInterface $inputService;
-
     // Base URL of the site, used for generating full URLs.
     protected string $siteUrl;
 
@@ -137,8 +134,6 @@ class Router extends Singleton implements RouterInterface
     // e.g., ['GET', 'POST', 'PUT', 'DELETE']
     protected array $onMatchAll = [];
 
-    // if cache passed this is an reference to it
-    protected ?CacheInterface $cacheService = null;
     // the caching key for routes
     protected string $cacheKey;
     // to turn off caching of routes
@@ -152,21 +147,18 @@ class Router extends Singleton implements RouterInterface
      * @param CacheInterface $cache optional cache service
      * @throws MissingRequired If the 'site' configuration is missing.
      */
-    protected function __construct(array $config, InputInterface $input, ?CacheInterface $cache = null)
+    protected function __construct(array $config, protected InputInterface $inputService, protected ?CacheInterface $cacheService = null)
     {
         logMsg('INFO', __METHOD__);
 
         // load the default configs
         $this->config = $this->mergeConfigWith($config, 'routes', false);
 
-        // set the input service
-        $this->inputService = $input;
-
         // Set the site URL
         if (isset($this->config['site url'])) {
             $this->siteUrl = $this->config['site url'];
         } else {
-            $this->siteUrl = $input->server('HTTP_HOST', '');
+            $this->siteUrl = $this->inputService->server('HTTP_HOST', '');
         }
 
         // let's make sure we set the site url
@@ -181,7 +173,7 @@ class Router extends Singleton implements RouterInterface
         $this->onMatchAll = $this->config['match all'] ?? ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'];
 
         // Set the cache if provided
-        if ($this->cacheService = $cache) {
+        if ($this->cacheService) {
             // Set the cache key
             $this->cacheKey = ENVIRONMENT . '\\' . __CLASS__;
         }
