@@ -78,17 +78,12 @@ use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
 class Dispatcher extends Singleton implements DispatcherInterface
 {
     /**
-     * The dependency injection container instance.
-     */
-    protected ContainerInterface $container;
-
-    /**
      * Constructor is protected to enforce singleton usage.
      * Use Singleton::getInstance() to obtain the instance.
      *
      * @param ContainerInterface $container Dependency injection container.
      */
-    protected function __construct(ContainerInterface $container)
+    protected function __construct(protected ContainerInterface $container)
     {
         logMsg('INFO', __METHOD__);
         // store the container

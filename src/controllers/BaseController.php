@@ -18,10 +18,6 @@ use ReflectionClass;
  */
 abstract class BaseController
 {
-    protected ConfigInterface $config;
-    protected InputInterface $input;
-    protected OutputInterface $output;
-
     /**
      * This array holds the services you want to autoload and attach on instantiation.
      * It allows you to load services that are local to the extending controller.
@@ -62,7 +58,7 @@ abstract class BaseController
      * @return void
      * @throws FileNotFound
      */
-    public function __construct(ConfigInterface $config, InputInterface $input, OutputInterface $output)
+    public function __construct(protected ConfigInterface $config, protected InputInterface $input, protected OutputInterface $output)
     {
         // attach the passed services to the controller
         // this way you can access them like $this->config, $this->input, $this->output, etc.

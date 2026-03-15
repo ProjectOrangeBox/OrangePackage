@@ -131,18 +131,13 @@ class Output extends Singleton implements OutputInterface
     protected array $mimes = [];
 
     /**
-     * $input Input interface for managing request details
-     */
-    protected InputInterface $input;
-
-    /**
      * Constructor is protected to enforce Singleton pattern.
      * Use Singleton::getInstance() to obtain an instance.
      *
      * @param array $config Configuration array.
      * @param InputInterface $input Input interface instance.
      */
-    protected function __construct(array $config, InputInterface $input)
+    protected function __construct(array $config,protected InputInterface $input)
     {
         logMsg('INFO', __METHOD__);
 

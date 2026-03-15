@@ -107,16 +107,6 @@ abstract class ViewAbstract extends Singleton implements ViewInterface
     public DirectorySearch $search;
 
     /**
-     * Data source for the view
-     */
-    protected ?DataInterface $data;
-
-    /**
-     * Router instance for dynamic view resolution
-     */
-    protected RouterInterface $router;
-
-    /**
      * Debug mode toggle
      */
     protected bool $debug = false;
@@ -158,7 +148,7 @@ abstract class ViewAbstract extends Singleton implements ViewInterface
      * @param DataInterface|null $data Optional data source for the view.
      * @throws IncorrectInterface|Directory
      */
-    protected function __construct(array $config, ?DataInterface $data = null, ?RouterInterface $router = null)
+    protected function __construct(array $config, protected ?DataInterface $data = null, protected ?RouterInterface $router = null)
     {
         logMsg('INFO', __METHOD__);
 
