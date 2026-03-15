@@ -1,3 +1,7 @@
+Application
+ [x] Make returns singleton instance
+ [x] Load environment loads ini values
+
 Ary
  [x] Remap key
  [x] Remap value
