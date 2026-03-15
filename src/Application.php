@@ -121,6 +121,7 @@ class Application
      */
     public static function make(?array $environmentalFiles = null, ?array $configDirectories = null): Application
     {
+        // if we don't have an instance yet, make one
         if (!isset(static::$self)) {
             static::$self = new static();
         }
@@ -133,6 +134,7 @@ class Application
             static::$self->setConfigDirectories(...$configDirectories);
         }
 
+        // return the instance
         return static::$self;
     }
 
@@ -403,6 +405,7 @@ class Application
     {
         // load from the system
         if (empty($this->env)) {
+            // load the system environment variables into our env array
             $this->env = $_ENV;
 
             // clear this out so we don't try to read from it but make sure it is still a array
@@ -438,11 +441,15 @@ class Application
         if (!isset($this->configDirectories)) {
             // initialize the config directories array
             $this->configDirectories = [];
+
             // make sure the environment is loaded
             $this->loadEnvironment();
+
             // get the list of application config files to load
             $arrayOfConfigDirectories = func_get_args();
-            // if no config directories were provided
+
+            // if no config directories were provided load the defaults
+            // ../config/* & ../config/{ENVIRONMENT}/*
             if (empty($arrayOfConfigDirectories)) {
                 // default location of application config folder
                 $arrayOfConfigDirectories[] = __ROOT__ . DIRECTORY_SEPARATOR . 'config';
@@ -451,7 +458,8 @@ class Application
             }
             // use the provided config directories
             $this->configDirectories = $arrayOfConfigDirectories;
-            // orange config folder is always checked first
+
+            // orange config folder is always checked first and then the others are merged in after
             array_unshift($this->configDirectories, __DIR__ . DIRECTORY_SEPARATOR . 'config');
         }
     }
@@ -504,6 +512,7 @@ class Application
     {
         // get the real path of the environmental file
         $environmentalFileRealPath = realpath($environmentalFile);
+
         // if the file doesn't exist
         if (!$environmentalFileRealPath) {
             throw new FileNotFound($environmentalFile);
@@ -511,6 +520,7 @@ class Application
 
         // parse the ini file and merge it into the env array
         $iniArray = parse_ini_file($environmentalFileRealPath, true, INI_SCANNER_TYPED);
+
         // make sure we got an array back
         if (!is_array($iniArray)) {
             throw new InvalidConfigurationValue($environmentalFileRealPath . ' Invalid INI file format or empty file.');
