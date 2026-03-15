@@ -1,13 +1,13 @@
-Dot
- [x] Change delimiter
- [x] Set and get with array
- [x] Set and get with object
- [x] Get with default
- [x] Isset
- [x] Unset
- [x] Flatten with array
- [x] Flatten with object
- [x] Expand with array
- [x] Expand with object
- [x] Round trip flatten expand
+Ary
+ [x] Remap key
+ [x] Remap value
+ [x] Wrap array
+ [x] Make associated with arrays
+ [x] Make associated with objects
+ [x] Make associated with asterisk
+ [x] Make associated with sort
+ [x] Make associated with sort desc
+ [x] Element
+ [x] Random element
+ [x] Elements
 

@@ -74,7 +74,7 @@ class Ary
      * @param string $sort Sorting option: 'asc', 'desc', or '' for no sort (default '').
      * @return array The associative array.
      */
-    public static function makeAssociated(array $array, string $key = 'id', string $value = '*', string $sort = ''): array
+    public static function makeAssociated(array $array, string $key = 'id', string $value = '*', ?string $sort = null, int $flags = -1): array
     {
         $associativeArray = [];
 
@@ -94,16 +94,25 @@ class Ary
             }
         }
 
-        switch ($sort) {
-            case 'desc':
-            case 'd':
-                krsort($associativeArray, SORT_NATURAL | SORT_FLAG_CASE);
-                break;
-            case 'asc':
-            case 'a':
-                ksort($associativeArray, SORT_NATURAL | SORT_FLAG_CASE);
-                break;
-            default:
+        if ($sort) {
+            $sortMethods = ['asort', 'arsort', 'ksort', 'krsort', 'natcasesort', 'natsort', 'shuffle', 'sort', 'rsort'];
+            $remap = ['desc' => 'krsort', 'd' => 'krsort', 'asc' => 'ksort', 'a' => 'ksort'];
+
+            if (isset($remap[$sort])) {
+                $sortFunction = $remap[$sort];
+            } elseif (in_array($sort, $sortMethods)) {
+                $sortFunction = $sort;
+            } else {
+                throw new \Exception('Could not determine sort method: ' . $sort);
+            }
+
+            if ($flags === -1) {
+                $sortFunction($associativeArray);
+            } else {
+                $sortFunction($associativeArray, $flags);
+            }
+
+            $sortFunction($associativeArray, $flags);
         }
 
         return $associativeArray;
