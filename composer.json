@@ -1,0 +1,13 @@
+{
+    "name": "orange/framework",
+    "description": "Orange Framework core package",
+    "type": "library",
+    "autoload": {
+        "psr-4": {
+            "orange\\framework\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=8.4"
+    }
+}
