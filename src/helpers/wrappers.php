@@ -24,8 +24,15 @@ if (!function_exists('container')) {
 if (!function_exists('logMsg')) {
     function logMsg(mixed $level, string $msg, array $context = []): void
     {
+        static $logInstance;
+
         try {
-            container()->log->log($level, $msg, $context);
+            // keep a static reference to the log instance to avoid multiple container calls
+            if ($logInstance === null) {
+                $logInstance = container()->log;
+            }
+
+            $logInstance->log($level, $msg, $context);
         } catch (Throwable $e) {
             // good chance the container or log isn't setup yet
             // so we can't do anything yet
@@ -37,11 +44,17 @@ if (!function_exists('logMsg')) {
 if (!function_exists('config')) {
     function config(?string $filename = null, ?string $key = null, mixed $default = null): mixed
     {
+        static $configInstance;
+
         try {
+            if ($configInstance === null) {
+                $configInstance = container()->config;
+            }
+
             if ($filename === null && $key === null && $default === null) {
-                $config = container()->config;
+                $config = $configInstance->config;
             } else {
-                $config = container()->config->get($filename . '.' . $key, $default);
+                $config = $configInstance->config->get($filename . '.' . $key, $default);
             }
         } catch (Throwable $e) {
             // config not setup?

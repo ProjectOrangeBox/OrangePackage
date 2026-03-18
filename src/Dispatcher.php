@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace orange\framework;
 
 use orange\framework\base\Singleton;
-use orange\framework\exceptions\InvalidValue;
-use orange\framework\interfaces\ContainerInterface;
-use orange\framework\interfaces\DispatcherInterface;
-use orange\framework\exceptions\dispatcher\MethodNotFound;
+use orange\framework\exceptions\dispatcher\ArgumentMissMatch;
 use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
+use orange\framework\exceptions\dispatcher\MethodNotFound;
+use orange\framework\exceptions\InvalidValue;
+use orange\framework\interfaces\DispatcherInterface;
+use orange\framework\property\RouterCallback;
 
 /**
  * Overview of Dispatcher.php
@@ -33,10 +34,7 @@ use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
  *  1.  Singleton Pattern
  *  •   Inherits from Singleton.
  *  •   Constructor is protected → ensures it can only be instantiated via Singleton::getInstance().
- *  2.  Dependency Injection Container
- *  •   Holds a reference to a ContainerInterface.
- *  •   Provides controllers with common services (config, input, output).
- *  3.  Route Handling (call() method)
+ *  2.  Route Handling (call() method)
  *  •   Accepts a $routeMatched array containing details of the matched route:
  *  •   Controller class name.
  *  •   Method to invoke.
@@ -46,8 +44,7 @@ use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
  *  •   Validates that:
  *  •   The controller class exists.
  *  •   The method exists on that class.
- *  4.  Controller Invocation
- *  •   Instantiates the controller with dependencies pulled from the container.
+ *  3.  Controller Invocation
  *  •   Calls the specified method with decoded route arguments.
  *  •   Validates the return value: must be a string.
  *  •   If null → converted to empty string.
@@ -78,60 +75,40 @@ use orange\framework\exceptions\dispatcher\ControllerClassNotFound;
 class Dispatcher extends Singleton implements DispatcherInterface
 {
     /**
-     * Constructor is protected to enforce singleton usage.
-     * Use Singleton::getInstance() to obtain the instance.
-     *
-     * @param ContainerInterface $container Dependency injection container.
-     */
-    protected function __construct(protected ContainerInterface $container)
-    {
-        logMsg('INFO', __METHOD__);
-        // store the container
-        $this->container = $container;
-    }
-
-    /**
      * Calls the matched route's callback with the provided arguments.
      *
-     * @param array $routeMatched An array containing route match information, including
-     *                            the controller, method, arguments, and additional metadata.
+     * This method takes a RouterCallback object containing the controller class name,
+     * method name, and URL arguments. It validates that the controller and method exist,
+     * invokes the method with decoded arguments, and ensures the return value is a string.
      *
-     * @return string The output of the controller's method, expected to be a string.
+     * @param RouterCallback $routerCallback The matched route callback object containing the controller class, method name, and arguments.
+     * @return string The output of the controller's method.
      *
      * @throws ControllerClassNotFound If the specified controller class does not exist.
      * @throws MethodNotFound If the specified method does not exist in the controller class.
      * @throws InvalidValue If the controller's method does not return a string.
      */
-    public function call(array $routeMatched): string
+    public function call(RouterCallback $routerCallback): string
     {
-        logMsg('INFO', __METHOD__ . var_export($routeMatched, true));
+        logMsg('INFO', __METHOD__ . var_export($routerCallback, true));
 
-        // get the controller from the route matched
-        $controllerClass = $routeMatched['callback'][self::CONTROLLER];
-        // get the method from the route matched
-        $method = $routeMatched['callback'][self::METHOD];
-
-        // get arguments
-        $matches = [];
-
-        // decode each argument
-        foreach ($routeMatched['argv'] as $value) {
-            // decode the value and add it to the matches array
-            $matches[] = urldecode($value);
-        }
-
-        // let's make sure the controller is present
-        if (!class_exists($controllerClass)) {
-            throw new ControllerClassNotFound($controllerClass);
+        // let's make sure the controller is present and autoload it
+        if (!class_exists($routerCallback->controller)) {
+            throw new ControllerClassNotFound($routerCallback->controller);
         }
 
         // let's make sure the controller has this method
-        if (!method_exists($controllerClass, $method)) {
-            throw new MethodNotFound($controllerClass . '::' . $method);
+        if (!method_exists($routerCallback->controller, $routerCallback->method)) {
+            throw new MethodNotFound($routerCallback->controller . '::' . $routerCallback->method);
         }
 
         // ok now instantiate the class and call the method
-        $output = (new $controllerClass($this->container->get('config'), $this->container->get('input'), $this->container->get('output')))->$method(...$matches);
+        try {
+            $output = (new $routerCallback->controller())->{$routerCallback->method}(...$routerCallback->arguments);
+        } catch (\ArgumentCountError $e) {
+            // if we get an argument count error it means the method is missing a required argument which means the route is not properly defined so throw a method not found exception
+            throw new ArgumentMissMatch($routerCallback->controller . '::' . $routerCallback->method . ' is missing required arguments. ' . $e->getMessage());
+        }
 
         // if they didn't return anything set output to an empty string
         $output = $output ?? '';
@@ -139,7 +116,7 @@ class Dispatcher extends Singleton implements DispatcherInterface
         // make sure they returned a string
         if (!is_string($output)) {
             // they returned something other than a string which is what the method and the output service expects so throw an error
-            throw new InvalidValue('Controller "' . $controllerClass . '" method "' . $method . '" did not return a string.');
+            throw new InvalidValue('Controller "' . $routerCallback->controller . '" method "' . $routerCallback->method . '" did not return a string. ' . gettype($output) . ' returned.');
         }
 
         // return the output

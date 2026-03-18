@@ -52,6 +52,7 @@ return [
     '@request' => 'input',
     '@response' => 'output',
 
+    '$mimes' => include_once __DIR__ . '/mimes.php',
     'container' => fn(array $services): ContainerInterface => Container::getInstance($services),
     'config' => fn(ContainerInterface $container): ConfigInterface => Config::getInstance($container->get('$application')),
     'log' => fn(ContainerInterface $container): LogInterface => Log::getInstance($container->config->log),

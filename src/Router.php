@@ -6,14 +6,15 @@ namespace orange\framework;
 
 use orange\framework\base\Singleton;
 use orange\framework\exceptions\InvalidValue;
-use orange\framework\interfaces\CacheInterface;
-use orange\framework\interfaces\InputInterface;
-use orange\framework\traits\ConfigurationTrait;
 use orange\framework\exceptions\MissingRequired;
-use orange\framework\interfaces\RouterInterface;
+use orange\framework\exceptions\router\HttpMethodNotSupported;
 use orange\framework\exceptions\router\RouteNotFound;
 use orange\framework\exceptions\router\RouterNameNotFound;
-use orange\framework\exceptions\router\HttpMethodNotSupported;
+use orange\framework\interfaces\CacheInterface;
+use orange\framework\interfaces\InputInterface;
+use orange\framework\interfaces\RouterInterface;
+use orange\framework\property\RouterCallback;
+use orange\framework\traits\ConfigurationTrait;
 
 /**
  * Overview of Router.php
@@ -290,6 +291,11 @@ class Router extends Singleton implements RouterInterface
                 // Get the URL from the arguments
                 $url = array_shift($argv);
 
+                // decode each argument
+                foreach ($argv as &$value) {
+                    $value = urldecode($value);
+                }
+
                 // Set the matched route information
                 $this->matched = [
                     'request method' => $requestMethodUpper,
@@ -337,6 +343,21 @@ class Router extends Singleton implements RouterInterface
 
         // Return the matched data
         return ($key) ? $this->matched[mb_strtolower($key)] : $this->matched;
+    }
+
+    public function getRouterCallback(): RouterCallback
+    {
+        $callback = $this->getMatched('callback');
+
+        if (!is_array($callback) || !isset($callback[0]) || !isset($callback[1])) {
+            throw new InvalidValue('Invalid route callback configuration.');
+        }
+
+        return new RouterCallback(
+            controller: $callback[0],
+            method: $callback[1],
+            arguments: $this->getMatched('argv') ?? []
+        );
     }
 
     /**

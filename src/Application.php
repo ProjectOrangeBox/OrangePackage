@@ -179,7 +179,7 @@ class Application
         $this->container->events->trigger('before.controller', $this->container->router, $this->container->input);
 
         // dispatch route
-        $this->container->output->write($this->container->dispatcher->call($this->container->router->getMatched()));
+        $this->container->output->write($this->container->dispatcher->call($this->container->router->getRouterCallback()));
 
         // call event
         $this->container->events->trigger('before.output', $this->container->router, $this->container->input, $this->container->output);

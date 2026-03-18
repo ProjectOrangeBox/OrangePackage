@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace orange\framework\controllers;
 
 use orange\framework\attributes\AttachService;
-use orange\framework\exceptions\container\ServiceNotFound;
 use orange\framework\exceptions\filesystem\FileNotFound;
 use orange\framework\helpers\DirectorySearch;
 use orange\framework\interfaces\ConfigInterface;
@@ -18,206 +17,79 @@ use ReflectionClass;
  */
 abstract class BaseController
 {
-    /**
-     * This array holds the services you want to autoload and attach on instantiation.
-     * It allows you to load services that are local to the extending controller.
-     * It is useful for loading services that are not defined in the config.
-     * The key is the attached service name (if you need something other than the actual service name), and the value is the service actual name.
-     *
-     * @var array
-     */
-    protected array $services = [];
+    #[AttachService('config')]
+    protected ConfigInterface $config;
+
+    #[AttachService('input')]
+    protected InputInterface $input;
+
+    #[AttachService('output')]
+    protected OutputInterface $output;
+
+    // this is the reflection of the extending controller class
+    protected ReflectionClass $reflection;
 
     /**
-     * This array holds the libraries you want to autoload on instantiation.
+     * This array holds the local libraries you want to autoload on instantiation.
      *
      * @var array
      */
     protected array $libraries = [];
 
     /**
-     * This array holds the helpers you want to autoload on instantiation.
-     * @var array
-     */
-    protected array $helpers = [];
-
-    /**
-     * This array holds the services attached to the controller.
-     * It allows you to access services like $this->config, $this->input, $this->output, etc.
-     *
-     * @var array<string, mixed>
-     */
-    protected array $attachedServices = [];
-
-    /**
      * BaseController constructor.
      *
-     * @param ConfigInterface $config
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @return void
      * @throws FileNotFound
      */
-    public function __construct(protected ConfigInterface $config, protected InputInterface $input, protected OutputInterface $output)
+    public function __construct()
     {
-        // attach the passed services to the controller
-        // this way you can access them like $this->config, $this->input, $this->output, etc.
-        $this->config = $config;
-        $this->input = $input;
-        $this->output = $output;
+        $this->reflection = new ReflectionClass(get_class($this));
 
-        // load the services defined in the config and defined with the #[AttachService] Attribute
-        $this->loadServices($config->get('application.default services', []))->autoAttachService();
+        // auto attach services defined with the #[AttachService] Attribute
+        $this->autoAttachService();
 
         // path to the parent directory of the parent class
-        $parentPath = dirname(dirname((new ReflectionClass(get_class($this)))->getFileName()));
+        $parentPath = dirname(dirname($this->reflection->getFileName()));
 
         // try to load (local to extending controller) libraries
-        foreach ($this->libraries as $filename) {
-            // construct the path to the library file
-            // it is expected to be in the libraries directory of the parent class
-            // the filename should not include the .php extension
-            // e.g. if the filename is 'MyLibrary', the file should be located at
-            // /path/to/orange/packages/orange/src/controllers/libraries/MyLibrary.php
-            $libraryFilePath = $parentPath . '/libraries/' . $filename . '.php';
+        foreach ($this->libraries as $library) {
+            $libraryFilePath = $parentPath . '/libraries/' . $library . '.php';
 
-            // check if the library file exists
             if (!file_exists($libraryFilePath)) {
                 throw new FileNotFound($libraryFilePath);
             }
 
             logMsg('INFO', 'INCLUDE FILE "' . $libraryFilePath . '"');
 
-            // include the library file
             include_once $libraryFilePath;
         }
 
-        // try to load (local to extending controller) helpers (global functions)
-        foreach ($this->helpers as $filename) {
-            $helperFilePath = $parentPath . '/helpers/' . $filename . '.php';
-
-            if (!file_exists($helperFilePath)) {
-                throw new FileNotFound($helperFilePath);
-            }
-
-            // log the inclusion of the helper file
-            logMsg('INFO', 'INCLUDE FILE "' . $helperFilePath . '"');
-
-            // include the helper file
-            include_once $helperFilePath;
-        }
-
-        // if we loaded the view service
+        /* @disregard P1014 Undefined property '$view'. */
         if (isset($this->view) && method_exists($this->view, 'search')) {
-            // then attach the local to extending controller view folders if available
-            foreach (['/', '/../', '/../../', '/../../../'] as $parents) {
-                if ($addPath = realpath($parentPath . $parents . 'views')) {
-                    $this->view->search->addDirectory($addPath, DirectorySearch::FIRST);
-                }
+            // Attach Local view path
+            if ($viewPath = realpath($parentPath . '/views')) {
+                /* @disregard P1014 Undefined property '$view'. */
+                $this->view->search->addDirectory($viewPath, DirectorySearch::FIRST);
             }
         }
 
         // call the extending controller "construct"
-        $this->beforeMethodCalled();
-    }
-
-    // wrapper to extend in child class if needed
-    // this provides a slightly cleaner parent::__construct()
-    protected function beforeMethodCalled() {}
-
-    /**
-     * This method allows you to load services
-     * from the controller's services array or from the passed array.
-     * It is useful for loading services that are not defined in the config.
-     *
-     * @param array $array
-     * @return BaseController
-     */
-    protected function loadServices(array $array = []): self
-    {
-        $this->attachServices($array);
-        $this->attachServices($this->services);
-
-        return $this;
-    }
-
-    /**
-     * This is an internal method to load services
-     * It allows you to load services from the controller's
-     * services array or from the passed array.
-     *
-     * @param array $services
-     * @return void
-     */
-    protected function attachServices(array $services): void
-    {
-        // loop through the services array
-        foreach ($services as $key => $name) {
-            if (!is_string($key)) {
-                $key = $name;
-            }
-
-            // attach the service to the controller
-            // this way you can access it like $this->serviceName
-            // where serviceName is the key of the service
-            $this->attachService($key, $name);
+        if (\method_exists($this, 'beforeMethodCalled')) {
+            /** @disregard P1013 Undefined method 'beforeMethodCalled'. */
+            $this->beforeMethodCalled();
         }
     }
 
-    /**
-     * This is an internal method to attach a service
-     * to the controller. It allows you to attach a service
-     * to the controller by its key and name.
-     *
-     * @param string $key
-     * @param null|string $name
-     * @return void
-     * @throws ServiceNotFound
-     */
-    protected function attachService(string $key, ?string $name = null): void
+    protected function autoAttachService(): void
     {
-        // convert the key to lowercase to match the attached services
-        // this will throw an exception if the service is not found
-        $this->attachedServices[mb_strtolower($key)] = container()->get($name ?? $key);
-    }
-
-    /**
-     * This lets you use loaded services as if they were
-     * attached directly to the controller
-     *
-     * $this->output
-     *
-     * @param string $key
-     * @return mixed
-     * @throws ServiceNotFound
-     */
-    public function __get(string $key): mixed
-    {
-        // convert the key to lowercase to match the attached services
-        $lowercaseKey = mb_strtolower($key);
-
-        if (!isset($this->attachedServices[$lowercaseKey])) {
-            throw new ServiceNotFound($key);
-        }
-
-        // return the attached service
-        return $this->attachedServices[$lowercaseKey];
-    }
-
-    protected function autoAttachService(): self
-    {
-        $reflection = new ReflectionClass(get_class($this));
-
-        foreach ($reflection->getProperties() as $property) {
+        foreach ($this->reflection->getProperties() as $property) {
             $attribute = $property->getAttributes(AttachService::class);
 
             if (isset($attribute[0])) {
-                $property = $property->getName();
+                logMsg('DEBUG', 'Attach ' . $attribute[0]->getArguments()[0] . ' to ' . $property->getName() . ' property of ' . get_class($this));
 
-                $this->$property = container()->get($attribute[0]->getArguments()[0]);
+                $this->{$property->getName()} = container()->get($attribute[0]->getArguments()[0]);
             }
         }
-
-        return $this;
     }
 }

@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace orange\framework\interfaces;
 
+use orange\framework\property\RouterCallback;
+
 interface RouterInterface
 {
     public function match(string $requestUri, string $requestMethod): self;
     public function getMatched(?string $key = null): mixed; /* mixed string|array */
+    public function getRouterCallback(): RouterCallback;
     public function getUrl(string $searchName, array $arguments = []): string;
     public function siteUrl(bool|string $appendHttp = true): string;
     public function addRoute(array $route): self;

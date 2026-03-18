@@ -68,6 +68,10 @@ Dispatcher
  [x] Call
  [x] Controller class not found exception
  [x] Method not found exception
+ [x] Method pass one
+ [x] Method pass two
+ [x] Method pass one null
+ [x] Method pass two empty
 
 Dot
  [x] Change delimiter
