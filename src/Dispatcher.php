@@ -104,6 +104,19 @@ class Dispatcher extends Singleton implements DispatcherInterface
 
         // ok now instantiate the class and call the method
         try {
+            // The router callback arguments can contain non-numeric keys if the end user used named capture groups
+            // so we need to filter out the named keys before unpacking them to pass them to the controller method
+            // so we don't get a "Cannot use positional argument after named argument during unpacking" error
+            // arguments are always passed as they are captured
+            // this protects the developer from accidentally using named capture groups
+            $routerCallback->arguments = array_filter(
+                $routerCallback->arguments,
+                function ($key) {
+                    return is_int($key);
+                },
+                ARRAY_FILTER_USE_KEY
+            );
+
             $output = (new $routerCallback->controller())->{$routerCallback->method}(...$routerCallback->arguments);
         } catch (\ArgumentCountError $e) {
             // if we get an argument count error it means the method is missing a required argument which means the route is not properly defined so throw a method not found exception
